@@ -10,12 +10,41 @@ description = "Last-known-value cache populated asynchronously from ai.* NATS su
 [lib]
 path = "src/lib.rs"
 
+# Build script enforces the architectural-forbid contract at compile time
+# (defensive in-crate half of the Hot_Path Purity gate; full transitive
+# closure is asserted by the CI workflow from task 8.1).
+build = "build.rs"
+
 [dependencies]
-hedge-core = { path = "../hedge-core" }
-hedge-bus = { path = "../hedge-bus" }
-tokio = { workspace = true }
-parking_lot = { workspace = true }
-once_cell = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-tracing = { workspace = true }
+hedge-core    = { path = "../hedge-core" }
+hedge-bus     = { path = "../hedge-bus" }
+hedge-config  = { path = "../hedge-config" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-risk    = { path = "../hedge-risk" }
+
+# Hot_Path read primitive: a single atomic pointer-load gives the Risk_Engine
+# every WarmCache value with no lock contention against the updater task.
+arc-swap = { workspace = true }
+
+# Sharded concurrent map — the LRU layer behind `trade_confidence` keys on
+# correlation_id; reads do not contend with writes from the updater task.
+dashmap = { workspace = true }
+
+# Bounded inline storage to avoid heap allocation on the read path.
+arrayvec = { workspace = true }
+smallvec = { workspace = true }
+
+tokio        = { workspace = true }
+async-nats   = { workspace = true }
+bytes        = { workspace = true }
+parking_lot  = { workspace = true }
+once_cell    = { workspace = true }
+serde        = { workspace = true }
+serde_json   = { workspace = true }
+thiserror    = { workspace = true }
+anyhow       = { workspace = true }
+tracing      = { workspace = true }
+futures      = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

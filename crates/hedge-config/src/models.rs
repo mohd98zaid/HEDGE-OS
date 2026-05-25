@@ -46,6 +46,10 @@ pub struct HedgeConfig {
     pub ollama: OllamaConfig,
     /// Observability retention and degraded-mode policy (R27, R28).
     pub observability: ObservabilityConfig,
+    /// Warm_AI_Pipeline last-known-value cache surface read by the
+    /// Risk_Engine on the Hot_Path (R9.4, R9.5, R17.4, R19.7; design
+    /// § Architecture § Hot_Path Architecture (WarmCache)).
+    pub warm_cache: WarmCacheConfig,
 }
 
 // ---------------------------------------------------------------------------
@@ -428,6 +432,49 @@ impl Default for ObservabilityConfig {
 impl Default for HedgeConfig {
     fn default() -> Self {
         defaults::hedge_config()
+    }
+}
+
+// ---------------------------------------------------------------------------
+// WarmCache -----------------------------------------------------------------
+// ---------------------------------------------------------------------------
+
+/// Last-known-value cache surface read by the Risk_Engine on the Hot_Path
+/// (R9.4, R9.5, R17.4, R19.7; design § Architecture § Hot_Path Architecture
+/// (WarmCache)).
+///
+/// The Risk_Engine reads cached `trade_confidence`, `market_stability`,
+/// `trader_stability`, `priority`, and `news_impact` values via a single
+/// `arc_swap::ArcSwap` atomic load on the per-tick path. Population is
+/// driven by a separate `WarmCacheUpdater` task that subscribes to the
+/// `ai.*` NATS subjects defined in design § NATS Subject Naming Convention.
+///
+/// Defaults match design § Hot_Path Architecture: 8192-entry LRU on
+/// `trade_confidence`, 5-second staleness window, and the canonical local
+/// NATS endpoint (`nats://127.0.0.1:4222`) used by the bundled
+/// `docker/nats` deployment.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct WarmCacheConfig {
+    /// Maximum number of `correlation_id → trade_confidence` entries the
+    /// LRU layer holds before evicting the least-recently-touched entry.
+    /// Default 8192 (one entry comfortably covers a full session of
+    /// concurrent rankings on a ₹20 000 base).
+    pub trade_confidence_lru_size: u32,
+    /// Staleness window in milliseconds. Entries older than this when
+    /// looked up are reported as missing so the Risk_Engine falls back to
+    /// `Signal_v1.confidence`. Default 5_000 ms (5 s) — matches the
+    /// Warm_AI_Pipeline ranking p95 budget plus headroom.
+    pub staleness_window_ms: u32,
+    /// NATS endpoint the `WarmCacheUpdater` task connects to. Used at
+    /// service startup; the read path never touches NATS. Default
+    /// `nats://127.0.0.1:4222`.
+    pub nats_url: String,
+}
+
+impl Default for WarmCacheConfig {
+    fn default() -> Self {
+        defaults::warm_cache()
     }
 }
 

@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Final, Self
 
 import structlog
 
-from .config_re_export import TimescaleSettings, load_settings
+from .config_re_export import TimescaleSettings, load_timescale_settings
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import asyncpg
@@ -120,7 +120,7 @@ async def create_pool(
     """
     import asyncpg
 
-    cfg = settings or load_settings()
+    cfg = settings or load_timescale_settings()
     statement_timeout_ms = cfg.statement_timeout_ms
 
     async def _init(conn: "asyncpg.Connection") -> None:

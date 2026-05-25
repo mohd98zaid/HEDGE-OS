@@ -13,7 +13,8 @@
     "trader_psychology",
     "brokers",
     "ollama",
-    "observability"
+    "observability",
+    "warm_cache"
   ],
   "$defs": {
     "TimeIst": {
@@ -244,6 +245,20 @@
             "sample_traces_at_jaeger_overload": { "$ref": "#/$defs/UnitInterval" }
           }
         }
+      }
+    },
+    "warm_cache": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "trade_confidence_lru_size",
+        "staleness_window_ms",
+        "nats_url"
+      ],
+      "properties": {
+        "trade_confidence_lru_size": { "type": "integer", "minimum": 1 },
+        "staleness_window_ms": { "type": "integer", "minimum": 0 },
+        "nats_url": { "type": "string", "minLength": 1 }
       }
     }
   }

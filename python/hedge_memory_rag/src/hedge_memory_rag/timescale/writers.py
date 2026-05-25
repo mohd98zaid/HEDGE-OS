@@ -16,8 +16,8 @@ are async functions on purpose.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
-from typing import TYPE_CHECKING, Any, Final
+from collections.abc import Iterable
+from typing import Any, Final
 
 import structlog
 
@@ -25,16 +25,16 @@ from .models import (
     AiScore,
     BrokerMetric,
     FillRecord,
+    GovernanceMetricSample,
     JournalEntry,
     OrderRecord,
+    PrevDayKeyLevel,
+    PreviousDayMemoryRow,
     PsychologyTimelinePoint,
     RegimeTransition,
     TickSample,
 )
 from .pool import TimescalePool
-
-if TYPE_CHECKING:  # pragma: no cover - typing only
-    import asyncpg
 
 _LOG: Final = structlog.get_logger(__name__)
 
@@ -97,6 +97,52 @@ _INSERT_JOURNAL = """
         (ts, correlation_id, trade_id, symbol, side, quantity,
          entry_paise, exit_paise, pnl_inr, narrative)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+"""
+
+_INSERT_GOVERNANCE_METRIC = """
+    INSERT INTO governance_metrics
+        (ts, component, metric, metric_kind, value, threshold, level,
+         action, correlation_id, sample_count)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+"""
+
+# ``prev_day_memory`` rows are upserted on (symbol_id, ts) — each
+# session_date-symbol pair has exactly one persisted row. The compute
+# job re-runs the same statement after Self_Healing_Supervisor restarts
+# without violating Property 5 ("exactly one persisted next-session
+# record per symbol per day") thanks to the ON CONFLICT clause.
+_UPSERT_PREV_DAY_MEMORY = """
+    INSERT INTO prev_day_memory
+        (ts, session_date, symbol_id, symbol,
+         open_paise, high_paise, low_paise, close_paise, vwap_paise,
+         total_volume, delivery_volume,
+         key_levels, failed_breakouts, gap_reactions, trend_continuation,
+         institutional_behavior, news_reactions,
+         embedding_point_id, computed_ts_ns)
+    VALUES ($1, $2, $3, $4,
+            $5, $6, $7, $8, $9,
+            $10, $11,
+            $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb,
+            $16::jsonb, $17::jsonb,
+            $18, $19)
+    ON CONFLICT (symbol_id, ts) DO UPDATE SET
+        session_date = EXCLUDED.session_date,
+        symbol = EXCLUDED.symbol,
+        open_paise = EXCLUDED.open_paise,
+        high_paise = EXCLUDED.high_paise,
+        low_paise = EXCLUDED.low_paise,
+        close_paise = EXCLUDED.close_paise,
+        vwap_paise = EXCLUDED.vwap_paise,
+        total_volume = EXCLUDED.total_volume,
+        delivery_volume = EXCLUDED.delivery_volume,
+        key_levels = EXCLUDED.key_levels,
+        failed_breakouts = EXCLUDED.failed_breakouts,
+        gap_reactions = EXCLUDED.gap_reactions,
+        trend_continuation = EXCLUDED.trend_continuation,
+        institutional_behavior = EXCLUDED.institutional_behavior,
+        news_reactions = EXCLUDED.news_reactions,
+        embedding_point_id = EXCLUDED.embedding_point_id,
+        computed_ts_ns = EXCLUDED.computed_ts_ns
 """
 
 
@@ -205,6 +251,62 @@ def _journal_row(j: JournalEntry) -> tuple[Any, ...]:
     )
 
 
+def _governance_metric_row(g: GovernanceMetricSample) -> tuple[Any, ...]:
+    return (
+        g.ts,
+        g.component,
+        g.metric,
+        g.metric_kind,
+        float(g.value),
+        float(g.threshold),
+        g.level,
+        g.action,
+        g.correlation_id,
+        int(g.sample_count),
+    )
+
+
+def _prev_day_key_levels_to_jsonb(levels: Iterable[PrevDayKeyLevel]) -> str:
+    """Serialise key levels as a JSON array string for asyncpg's JSONB cast."""
+    import json
+
+    return json.dumps(
+        [{"kind": lvl.kind, "price_paise": int(lvl.price_paise)} for lvl in levels],
+        separators=(",", ":"),
+    )
+
+
+def _to_jsonb(payload: Any) -> str:
+    """Serialise a JSON-able payload to a compact JSON string."""
+    import json
+
+    return json.dumps(payload, separators=(",", ":"))
+
+
+def _prev_day_memory_row(p: PreviousDayMemoryRow) -> tuple[Any, ...]:
+    return (
+        p.ts,
+        p.session_date,
+        int(p.symbol_id),
+        p.symbol,
+        int(p.open_paise),
+        int(p.high_paise),
+        int(p.low_paise),
+        int(p.close_paise),
+        int(p.vwap_paise),
+        int(p.total_volume),
+        int(p.delivery_volume),
+        _prev_day_key_levels_to_jsonb(p.key_levels),
+        _to_jsonb(list(p.failed_breakouts)),
+        _to_jsonb(dict(p.gap_reactions)),
+        _to_jsonb(dict(p.trend_continuation)),
+        _to_jsonb(dict(p.institutional_behavior)),
+        _to_jsonb(list(p.news_reactions)),
+        p.embedding_point_id,
+        int(p.computed_ts_ns),
+    )
+
+
 # --- Writer ---------------------------------------------------------------
 
 
@@ -249,6 +351,44 @@ class TimescaleWriter:
     ) -> int:
         return await self._executemany(_INSERT_JOURNAL, entry, _journal_row)
 
+    async def write_governance_metric(
+        self,
+        sample: GovernanceMetricSample | Iterable[GovernanceMetricSample],
+    ) -> int:
+        """Append one or more rows to the ``governance_metrics`` hypertable.
+
+        Used by the AI_Governance_Engine (R23.3, R24.1) to persist:
+
+        * metric snapshots (``action`` is ``None`` when the level
+          did not change), and
+        * edge transitions (``action`` is ``reduce_influence``,
+          ``shadow_mode``, or ``rollback`` when a threshold crossing
+          fired the matching ``ai.gov.action`` event), and
+        * prediction-quality outcomes correlated against
+          ``exec.trade.closed`` / ``pos.update.<sym>``
+          (``correlation_id`` populated, ``metric_kind ==
+          "prediction_quality"``).
+        """
+        return await self._executemany(
+            _INSERT_GOVERNANCE_METRIC, sample, _governance_metric_row
+        )
+
+    async def write_prev_day_memory(
+        self,
+        record: PreviousDayMemoryRow | Iterable[PreviousDayMemoryRow],
+    ) -> int:
+        """Upsert one or more ``prev_day_memory`` rows.
+
+        The underlying SQL uses ``INSERT ... ON CONFLICT (symbol_id, ts)
+        DO UPDATE`` so repeated calls (e.g. the next-session compute job
+        re-running after a Self_Healing_Supervisor restart) remain
+        idempotent and preserve the "exactly one persisted next-session
+        record per symbol per day" invariant (Property 5, task 24.2).
+        """
+        return await self._executemany(
+            _UPSERT_PREV_DAY_MEMORY, record, _prev_day_memory_row
+        )
+
     # ---- internals --------------------------------------------------
 
     async def _executemany(
@@ -273,7 +413,8 @@ def _iter_rows(items: Any, mapper: Any) -> Iterable[tuple[Any, ...]]:
         return
     if isinstance(items, (TickSample, OrderRecord, FillRecord, AiScore,
                           RegimeTransition, PsychologyTimelinePoint,
-                          BrokerMetric, JournalEntry)):
+                          BrokerMetric, JournalEntry, PreviousDayMemoryRow,
+                          GovernanceMetricSample)):
         yield mapper(items)
         return
     # Treat strings/bytes as scalars even though they're iterable.

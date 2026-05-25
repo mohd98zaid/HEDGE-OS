@@ -42,7 +42,7 @@ pub use models::{
     AiConfig, BrokerConfig, CapitalConfig, DegradedModeConfig, GovernanceConfig, HedgeConfig,
     ObservabilityConfig, OllamaConfig, OllamaModelConfig, OllamaRole, PostTargetPolicy,
     PsychologyThresholds, RankingFactorsConfig, RetentionConfig, RiskConfig, SessionConfig,
-    TraderPsychologyConfig, UiConfig, WarModeConfig,
+    TraderPsychologyConfig, UiConfig, WarModeConfig, WarmCacheConfig,
 };
 pub use pinned::{MutableConfig, PinnedConfig};
 pub use validation::{validate_json, validator, SCHEMA_JSON};

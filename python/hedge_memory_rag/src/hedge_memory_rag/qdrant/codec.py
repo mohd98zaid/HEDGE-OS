@@ -125,8 +125,11 @@ def encode_embedding_cbor(
 
     # Use little-endian byte order explicitly so the wire representation
     # is reproducible across architectures (x86_64 native + ARM64
-    # development laptops). ``tobytes()`` honours the dtype byte order.
-    arr_le = arr.astype(np_dtype).newbyteorder("<")  # cheap on x86; flips on ARM
+    # development laptops). In numpy 2.x the ``ndarray.newbyteorder``
+    # shortcut was removed; the canonical replacement is to construct
+    # the target byte-ordered dtype and ``astype`` into it.
+    le_dtype = np.dtype(np_dtype).newbyteorder("<")
+    arr_le = arr.astype(le_dtype, copy=False)
     payload = {
         _DTYPE_KEY: dtype,
         _DIM_KEY: int(arr.size),

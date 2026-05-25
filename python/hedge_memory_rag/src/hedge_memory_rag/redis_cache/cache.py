@@ -95,6 +95,12 @@ _KEY_REGIME_CURRENT: Final[str] = "regime:current"
 #: ``<namespace>:psych:stability_score:current``.
 _KEY_STABILITY_CURRENT: Final[str] = "psych:stability_score:current"
 
+#: Single-value current `MarketStability` factor key written by the
+#: Market_Regime_Engine (task 22.1) and consumed by the Risk_Engine via
+#: the WarmCache (task 44.x). Format:
+#: ``<namespace>:regime:market_stability:current``.
+_KEY_MARKET_STABILITY_CURRENT: Final[str] = "regime:market_stability:current"
+
 
 def _normalise_symbol(symbol: str) -> str:
     """Validate and normalise a symbol string before composing a key.
@@ -246,6 +252,9 @@ class RedisHotCache:
 
     def _stability_key(self) -> str:
         return self._ns(_KEY_STABILITY_CURRENT)
+
+    def _market_stability_key(self) -> str:
+        return self._ns(_KEY_MARKET_STABILITY_CURRENT)
 
     # ----- bounded-LRU ring helpers ----------------------------------------
 
@@ -441,6 +450,60 @@ class RedisHotCache:
         """Return the current Trader_Stability_Score, or ``None``."""
         return await self._get_simple(
             key=self._stability_key(), op="get_stability_score"
+        )
+
+    # ----- current `MarketStability` factor (R13.5, R5.13) -----------------
+
+    async def set_market_stability(self, factor: Any) -> None:
+        """Replace the current ``MarketStability`` factor cache entry.
+
+        Cache invalidation on write: subsequent
+        :meth:`get_market_stability` callers see the new value
+        immediately. Bounded by ``market_stability_ttl_s`` so a stalled
+        Market_Regime_Engine does not surface a stale stability factor
+        forever.
+
+        The Risk_Engine reads this key through the WarmCache last-known-
+        value path (task 44.x) when computing
+        ``Adaptive_Risk = BaseRisk × MarketStability × SignalConfidence
+        × TraderDiscipline`` (R5.13). Until 44.x lands, the Python
+        engine writes here directly and the Rust WarmCache wrapper will
+        rebind to the same key without changing the wire surface.
+
+        Args:
+            factor: A :class:`pydantic.BaseModel` carrying the value
+                (or simply a bare ``float`` in [0.0, 1.0]). The cache
+                stores the JSON payload verbatim; type checking is the
+                producer's responsibility.
+        """
+        key = self._market_stability_key()
+        payload = encode_payload(factor, op="set_market_stability", key=key)
+        client = self._require_client(op="set_market_stability")
+        try:
+            await client.set(key, payload, ex=self._config.market_stability_ttl_s)
+        except redis_exc.TimeoutError as exc:
+            raise RedisCacheTimeoutError(
+                f"timeout on set_market_stability for key={key!r}: {exc}",
+                op="set_market_stability",
+                key=key,
+            ) from exc
+        except redis_exc.ConnectionError as exc:
+            raise RedisCacheConnectError(
+                f"connection error on set_market_stability for key={key!r}: {exc}",
+                op="set_market_stability",
+                key=key,
+            ) from exc
+        except redis_exc.RedisError as exc:
+            raise RedisCacheError(
+                f"redis error on set_market_stability for key={key!r}: {exc}",
+                op="set_market_stability",
+                key=key,
+            ) from exc
+
+    async def get_market_stability(self) -> Any | None:
+        """Return the current ``MarketStability`` factor, or ``None``."""
+        return await self._get_simple(
+            key=self._market_stability_key(), op="get_market_stability"
         )
 
     # ----- helpers ---------------------------------------------------------

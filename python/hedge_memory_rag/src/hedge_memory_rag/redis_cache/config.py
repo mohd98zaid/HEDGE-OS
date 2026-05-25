@@ -53,6 +53,14 @@ DEFAULT_NEWS_PER_SYMBOL: Final[int] = 100
 DEFAULT_REGIME_TTL_S: Final[int] = 300
 DEFAULT_STABILITY_TTL_S: Final[int] = 300
 
+#: Staleness window for the current `MarketStability` factor written by
+#: the Market_Regime_Engine (task 22.1). The factor is consumed by the
+#: Risk_Engine via the WarmCache last-known-value path; the TTL bounds
+#: how long a stalled producer can leak stale stability values into the
+#: Risk_Engine sizing formula. Same five-minute floor as the regime and
+#: stability-score caches.
+DEFAULT_MARKET_STABILITY_TTL_S: Final[int] = 300
+
 #: Wire-level socket timeout. Five seconds is well above Redis's
 #: typical sub-millisecond round-trip and guards against a daemon
 #: that has accepted the TCP connection but stalled.
@@ -94,6 +102,7 @@ class RedisCacheConfig:
     news_per_symbol: int = DEFAULT_NEWS_PER_SYMBOL
     regime_ttl_s: int = DEFAULT_REGIME_TTL_S
     stability_ttl_s: int = DEFAULT_STABILITY_TTL_S
+    market_stability_ttl_s: int = DEFAULT_MARKET_STABILITY_TTL_S
     socket_timeout_s: float = DEFAULT_SOCKET_TIMEOUT_S
     connect_timeout_s: float = DEFAULT_CONNECT_TIMEOUT_S
 
@@ -114,6 +123,11 @@ class RedisCacheConfig:
             raise ValueError(
                 f"stability_ttl_s must be positive, got {self.stability_ttl_s!r}"
             )
+        if self.market_stability_ttl_s <= 0:
+            raise ValueError(
+                "market_stability_ttl_s must be positive, got "
+                f"{self.market_stability_ttl_s!r}"
+            )
         if self.socket_timeout_s <= 0:
             raise ValueError(
                 f"socket_timeout_s must be positive, got {self.socket_timeout_s!r}"
@@ -133,6 +147,7 @@ def load_redis_cache_config(
     news_per_symbol: int = DEFAULT_NEWS_PER_SYMBOL,
     regime_ttl_s: int = DEFAULT_REGIME_TTL_S,
     stability_ttl_s: int = DEFAULT_STABILITY_TTL_S,
+    market_stability_ttl_s: int = DEFAULT_MARKET_STABILITY_TTL_S,
     socket_timeout_s: float = DEFAULT_SOCKET_TIMEOUT_S,
     connect_timeout_s: float = DEFAULT_CONNECT_TIMEOUT_S,
 ) -> RedisCacheConfig:
@@ -164,6 +179,7 @@ def load_redis_cache_config(
         news_per_symbol=news_per_symbol,
         regime_ttl_s=regime_ttl_s,
         stability_ttl_s=stability_ttl_s,
+        market_stability_ttl_s=market_stability_ttl_s,
         socket_timeout_s=socket_timeout_s,
         connect_timeout_s=connect_timeout_s,
     )
@@ -172,6 +188,7 @@ def load_redis_cache_config(
 __all__ = [
     "DEFAULT_CONNECT_TIMEOUT_S",
     "DEFAULT_KEY_NAMESPACE",
+    "DEFAULT_MARKET_STABILITY_TTL_S",
     "DEFAULT_NEWS_PER_SYMBOL",
     "DEFAULT_REGIME_TTL_S",
     "DEFAULT_SOCKET_TIMEOUT_S",

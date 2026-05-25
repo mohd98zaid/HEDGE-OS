@@ -15,6 +15,11 @@ The mapping (R19.1):
 * ``PsychologyTimelinePoint`` ← ``ai.psych.stability``.
 * ``BrokerMetric``         — Memory_RAG-local broker latency / error sample.
 * ``JournalEntry``         ← ``ai.journal.entry`` (R18.2).
+* ``PreviousDayMemoryRow`` ← ``mem.prev_day.<sym>`` (R15) — full
+                             persisted row including the structural
+                             behaviour markers (failed breakouts, gap
+                             reactions, delivery volume, trend continuation,
+                             institutional behavior, news reactions).
 
 All models forbid extra fields and freeze on instantiation so the writers
 can rely on structural equality during the round-trip property test
@@ -23,8 +28,8 @@ can rely on structural equality during the round-trip property test
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Annotated, Final, Literal
+from datetime import date, datetime, timezone
+from typing import Annotated, Any, Final, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -221,6 +226,134 @@ class JournalEntry(_Record):
     narrative: Annotated[str, Field(min_length=1, max_length=8192)]
 
 
+# --- Governance metrics ----------------------------------------------------
+
+
+# Mirror of the canonical ``ai.gov.action.metric`` enum, so a row read
+# back from the hypertable round-trips into a wire-valid payload.
+GovernanceMetric = Literal["drift", "accuracy", "latency", "error_rate"]
+
+# Engine-internal metric name; richer than the canonical wire enum so
+# the row can distinguish ``confidence_stability`` and
+# ``hallucination_indicators`` (both map to the wire ``error_rate``).
+GovernanceMetricKind = Literal[
+    "drift",
+    "confidence_stability",
+    "hallucination_indicators",
+    "prediction_quality",
+]
+
+# Per-component governance level enum (matches
+# ``GovernanceLevel`` in :mod:`hedge_warm_ai.governance.ladder`).
+GovernanceLevel = Literal["none", "degraded", "critical"]
+
+# Subset of the canonical ``ai.gov.action.action`` enum the engine
+# actually emits. ``freeze`` is reserved for future use; not used by
+# the engine today.
+GovernanceAction = Literal["reduce_influence", "shadow_mode", "rollback"]
+
+
+class GovernanceMetricSample(_Record):
+    """Persisted row for the ``governance_metrics`` hypertable (R23.3, R24.1).
+
+    The row carries every field needed to:
+
+    * reconstruct the canonical ``ai.gov.action`` payload for a given
+      edge emission (``component``, ``metric``, ``value``,
+      ``threshold``, ``action``);
+    * track the per-component governance level over time
+      (``level``);
+    * correlate prediction-quality outcomes with the upstream
+      component output (``correlation_id``); and
+    * disambiguate ``confidence_stability`` from
+      ``hallucination_indicators`` rows (``metric_kind``) — both map
+      to the canonical wire enum value ``error_rate``.
+
+    ``action`` is ``None`` when the row records a non-edge metric
+    snapshot (continued tracking with the level unchanged).
+    ``correlation_id`` is ``None`` for plain metric snapshots and
+    populated when the row correlates a component output with a
+    realised market outcome.
+    """
+
+    ts: datetime
+    component: Annotated[str, Field(min_length=1, max_length=64)]
+    metric: GovernanceMetric
+    metric_kind: GovernanceMetricKind
+    value: float
+    threshold: float
+    level: GovernanceLevel
+    action: GovernanceAction | None = None
+    correlation_id: Annotated[str, Field(min_length=1, max_length=64)] | None = None
+    sample_count: Annotated[int, Field(ge=0)] = 0
+
+
+# --- Previous-day memory ---------------------------------------------------
+
+
+# Mirrors ``KeyLevelKind`` in ``hedge_warm_ai.schemas.mem_prev_day``.
+PrevDayKeyLevelKind = Literal[
+    "support",
+    "resistance",
+    "swing_high",
+    "swing_low",
+    "vwap",
+    "open",
+    "close",
+]
+
+
+class PrevDayKeyLevel(_Record):
+    """One persisted previous-day key price level (mirrors ``KeyLevel``)."""
+
+    kind: PrevDayKeyLevelKind
+    price_paise: int
+
+
+class PreviousDayMemoryRow(_Record):
+    """One row of the ``prev_day_memory`` hypertable (R15.1, R15.3).
+
+    The OHLCV / VWAP fix points and the canonical ``key_levels`` array
+    are mirrored 1:1 from ``hedge_warm_ai.schemas.PreviousDayMemory`` so
+    a row read from Timescale round-trips into the wire schema for the
+    ``mem.prev_day.<sym>`` event verbatim (Property 5).
+
+    The structural behaviour markers are stored as JSON-able mappings /
+    sequences. They evolve more often than the fix points, so keeping
+    them in JSONB columns avoids further migrations:
+
+    * ``failed_breakouts``       — list of {price_paise, ts_ns, side, ...}
+    * ``gap_reactions``          — {gap_paise, fill_ratio, retraced, ...}
+    * ``trend_continuation``     — {direction, strength, ...}
+    * ``institutional_behavior`` — {delivery_pct, large_order_ratio, ...}
+    * ``news_reactions``         — list of {headline_id, magnitude, ts_ns, ...}
+
+    ``embedding_point_id`` is the Qdrant ``market_memory`` point id of
+    the embedding-friendly summary attached to this row; ``None`` when
+    the embedder has not yet run (e.g. mid-compute).
+    """
+
+    ts: datetime
+    session_date: date
+    symbol_id: Annotated[int, Field(ge=0, le=2**32 - 1)]
+    symbol: Annotated[str, Field(min_length=1, max_length=32)]
+    open_paise: int
+    high_paise: int
+    low_paise: int
+    close_paise: int
+    vwap_paise: int
+    total_volume: Annotated[int, Field(ge=0)]
+    delivery_volume: Annotated[int, Field(ge=0)]
+    key_levels: Annotated[list[PrevDayKeyLevel], Field(default_factory=list, max_length=16)]
+    failed_breakouts: list[dict[str, Any]] = Field(default_factory=list)
+    gap_reactions: dict[str, Any] = Field(default_factory=dict)
+    trend_continuation: dict[str, Any] = Field(default_factory=dict)
+    institutional_behavior: dict[str, Any] = Field(default_factory=dict)
+    news_reactions: list[dict[str, Any]] = Field(default_factory=list)
+    embedding_point_id: Annotated[str, Field(max_length=128)] | None = None
+    computed_ts_ns: Annotated[int, Field(ge=0)]
+
+
 # --- Constants -------------------------------------------------------------
 
 #: Stable canonical names every hypertable in this layer is registered
@@ -234,6 +367,8 @@ HYPERTABLE_NAMES: Final[tuple[str, ...]] = (
     "psychology_timeline",
     "broker_metrics",
     "journal_entries",
+    "prev_day_memory",
+    "governance_metrics",
 )
 
 
@@ -242,12 +377,20 @@ __all__ = [
     "BrokerMetric",
     "ExchangeCode",
     "FillRecord",
+    "GovernanceAction",
+    "GovernanceLevel",
+    "GovernanceMetric",
+    "GovernanceMetricKind",
+    "GovernanceMetricSample",
     "HYPERTABLE_NAMES",
     "JournalEntry",
     "OrderRecord",
     "OrderSide",
     "OrderStateName",
     "OrderType",
+    "PrevDayKeyLevel",
+    "PrevDayKeyLevelKind",
+    "PreviousDayMemoryRow",
     "PsychologyTimelinePoint",
     "RegimeName",
     "RegimeTransition",

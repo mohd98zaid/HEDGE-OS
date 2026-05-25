@@ -53,6 +53,7 @@ crossbeam = "0.8"
 arrayvec = "0.7"
 smallvec = "1.13"
 dashmap = "6.0"
+arc-swap = "1.7"
 quanta = "0.12"
 stats_alloc = "0.1"
 serde = { version = "1.0", features = ["derive"] }

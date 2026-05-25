@@ -40,6 +40,8 @@ from .models import (
     FillRecord,
     JournalEntry,
     OrderRecord,
+    PrevDayKeyLevel,
+    PreviousDayMemoryRow,
     PsychologyTimelinePoint,
     RegimeTransition,
     TickSample,
@@ -67,6 +69,50 @@ def _ensure_aware(ts: datetime, *, name: str) -> datetime:
         # callers that build datetimes via `datetime.utcnow()`.
         return ts.replace(tzinfo=timezone.utc)
     return ts
+
+
+def _prev_day_row_to_model(row: "asyncpg.Record") -> PreviousDayMemoryRow:
+    """Coerce one ``prev_day_memory`` SELECT row into the typed model."""
+    import json as _json
+
+    def _maybe_json(value: Any, default: Any) -> Any:
+        if value is None:
+            return default
+        if isinstance(value, (str, bytes, bytearray)):
+            return _json.loads(value)
+        return value
+
+    raw_levels = _maybe_json(row["key_levels"], [])
+    levels = [
+        PrevDayKeyLevel(
+            kind=str(item["kind"]),  # validated by Literal
+            price_paise=int(item["price_paise"]),
+        )
+        for item in raw_levels
+    ]
+    return PreviousDayMemoryRow(
+        ts=row["ts"],
+        session_date=row["session_date"],
+        symbol_id=int(row["symbol_id"]),
+        symbol=str(row["symbol"]),
+        open_paise=int(row["open_paise"]),
+        high_paise=int(row["high_paise"]),
+        low_paise=int(row["low_paise"]),
+        close_paise=int(row["close_paise"]),
+        vwap_paise=int(row["vwap_paise"]),
+        total_volume=int(row["total_volume"]),
+        delivery_volume=int(row["delivery_volume"]),
+        key_levels=levels,
+        failed_breakouts=list(_maybe_json(row["failed_breakouts"], [])),
+        gap_reactions=dict(_maybe_json(row["gap_reactions"], {})),
+        trend_continuation=dict(_maybe_json(row["trend_continuation"], {})),
+        institutional_behavior=dict(_maybe_json(row["institutional_behavior"], {})),
+        news_reactions=list(_maybe_json(row["news_reactions"], [])),
+        embedding_point_id=(
+            None if row["embedding_point_id"] is None else str(row["embedding_point_id"])
+        ),
+        computed_ts_ns=int(row["computed_ts_ns"]),
+    )
 
 
 def _validate_window(start_ts: datetime, end_ts: datetime, limit: int | None) -> tuple[
@@ -407,6 +453,66 @@ class TimescaleReader:
             for r in rows
         ]
 
+    # ----- Previous-day memory reader -----------------------------------
+
+    async def read_prev_day_memory(
+        self,
+        start_ts: datetime,
+        end_ts: datetime,
+        *,
+        symbol_id: int | None = None,
+        symbol: str | None = None,
+        limit: int | None = None,
+    ) -> list[PreviousDayMemoryRow]:
+        """Window-scan ``prev_day_memory``. ``ts`` is the session_date as TIMESTAMPTZ."""
+        s, e, cap = _validate_window(start_ts, end_ts, limit)
+        clauses = ["ts >= $1", "ts < $2"]
+        args: list[Any] = [s, e]
+        if symbol_id is not None:
+            args.append(int(symbol_id))
+            clauses.append(f"symbol_id = ${len(args)}")
+        if symbol is not None:
+            args.append(symbol)
+            clauses.append(f"symbol = ${len(args)}")
+        args.append(cap)
+        sql = f"""
+            SELECT ts, session_date, symbol_id, symbol,
+                   open_paise, high_paise, low_paise, close_paise, vwap_paise,
+                   total_volume, delivery_volume,
+                   key_levels, failed_breakouts, gap_reactions,
+                   trend_continuation, institutional_behavior, news_reactions,
+                   embedding_point_id, computed_ts_ns
+            FROM prev_day_memory
+            WHERE {" AND ".join(clauses)}
+            ORDER BY ts ASC, symbol_id ASC
+            LIMIT ${len(args)}
+        """
+        rows = await self._fetch(sql, *args)
+        return [_prev_day_row_to_model(r) for r in rows]
+
+    async def read_prev_day_memory_latest(
+        self,
+        symbol_id: int,
+    ) -> PreviousDayMemoryRow | None:
+        """Return the most-recent persisted ``prev_day_memory`` row for ``symbol_id``."""
+        sql = """
+            SELECT ts, session_date, symbol_id, symbol,
+                   open_paise, high_paise, low_paise, close_paise, vwap_paise,
+                   total_volume, delivery_volume,
+                   key_levels, failed_breakouts, gap_reactions,
+                   trend_continuation, institutional_behavior, news_reactions,
+                   embedding_point_id, computed_ts_ns
+            FROM prev_day_memory
+            WHERE symbol_id = $1
+            ORDER BY ts DESC
+            LIMIT 1
+        """
+        async with self._pool.acquire() as conn:
+            row = await conn.fetchrow(sql, int(symbol_id))
+        if row is None:
+            return None
+        return _prev_day_row_to_model(row)
+
     # ----- Generic dispatcher (used by the retrieval pipeline) -----------
 
     async def read_window_any(
@@ -436,6 +542,7 @@ class TimescaleReader:
             "psychology_timeline": self.read_psychology_timeline,
             "broker_metrics": self.read_broker_metrics,
             "journal_entries": self.read_journal_entries,
+            "prev_day_memory": self.read_prev_day_memory,
         }
         method = dispatch[table]
         return await method(start_ts, end_ts, limit=limit, **filters)  # type: ignore[arg-type]

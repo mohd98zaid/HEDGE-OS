@@ -505,8 +505,8 @@ graph TD
     - _Design: Components § News_Intelligence_Engine_
     - _Property: 3 — Latency Budget Compliance_
 
-- [ ] 21. News_Intelligence_Engine (`hedge_warm_ai.news`)
-  - [~] 21.1 Implement source adapters, dedup, fast path, slow path, and emission
+- [x] 21. News_Intelligence_Engine (`hedge_warm_ai.news`)
+  - [x] 21.1 Implement source adapters, dedup, fast path, slow path, and emission
     - Implement `Source_Adapter` per source: Reuters, Moneycontrol, NSE filings, RBI, Twitter/X, Telegram, Economic Times, broker feeds
     - Implement headline `Dedup` keyed by content hash
     - Implement `Fast_Path { entity_extract, finbert_sentiment, impact_score, symbol_map }` producing `NewsImpact_v1` with `sentiment ∈ [-1,1]` and `impact_magnitude ∈ [0,1]`
@@ -523,8 +523,8 @@ graph TD
     - _Design: Components § News_Intelligence_Engine_
     - _Property: 3 — Latency Budget Compliance; Property: 4 — Score and Formula Equivalence_
 
-- [ ] 22. Market_Regime_Engine (`hedge_warm_ai.regime`)
-  - [~] 22.1 Implement regime classifier and edge-triggered emission
+- [x] 22. Market_Regime_Engine (`hedge_warm_ai.regime`)
+  - [x] 22.1 Implement regime classifier and edge-triggered emission
     - Classify the current regime at each evaluation interval into `Trending`, `Sideways`, `Panic`, `High_Volatility`, `News_Driven`, `Liquidity_Crisis`, `Low_Participation`
     - Emit `ai.regime.changed` to NATS only on transitions, with prior and current values
     - Update the `MarketStability` factor exposed via WarmCache for Risk_Engine consumption
@@ -536,8 +536,8 @@ graph TD
     - _Design: Components § Market_Regime_Engine_
     - _Property: 8 — Edge-Triggered Emission of State Changes_
 
-- [ ] 23. Symbol_Priority_Engine (`hedge_warm_ai.priority`)
-  - [~] 23.1 Implement priority assignment and allocation
+- [x] 23. Symbol_Priority_Engine (`hedge_warm_ai.priority`)
+  - [x] 23.1 Implement priority assignment and allocation
     - Assign each tracked symbol exactly one of `P1 | P2 | P3 | P4` (totality)
     - Maintain `PriorityAllocationTable` mapping tier → CPU budget, AI inference budget, scan frequency, alert frequency
     - Edge-emit `ai.priority.changed.<sym>` with prior and current tier when trader, regime, or news inputs change a symbol's priority
@@ -551,8 +551,8 @@ graph TD
     - _Design: Components § Symbol_Priority_Engine_
     - _Property: 8 — Edge-Triggered Emission of State Changes; Property: 10 — Subscriber Receives Every Event Exactly Once Per Subscribed Subject_
 
-- [ ] 24. Previous_Day_Memory_Engine (`hedge_warm_ai.prev_day`)
-  - [~] 24.1 Implement persistence and exposure of previous-session structural data
+- [x] 24. Previous_Day_Memory_Engine (`hedge_warm_ai.prev_day`)
+  - [x] 24.1 Implement persistence and exposure of previous-session structural data
     - Persist per-symbol previous-session: high, low, close, failed-breakout markers, gap reactions, delivery volume, trend continuation indicators, institutional behavior indicators, significant news reactions
     - Expose `mem.prev_day.query` (request-reply) and `mem.prev_day.<sym>` (subscription) to Signal_Engine, Risk_Engine, and UI
     - On `ops.session.end`, schedule a job that computes and persists the next-session dataset before the next `ops.session.start`
@@ -565,8 +565,8 @@ graph TD
     - _Design: Components § Previous_Day_Memory_Engine_
     - _Property: 5 — Serialization and Persistence Round-Trip_
 
-- [ ] 25. Trader_Psychology_Engine (`hedge_warm_ai.psychology`)
-  - [~] 25.1 Implement behavior detection, stability score, and threshold ladder
+- [x] 25. Trader_Psychology_Engine (`hedge_warm_ai.psychology`)
+  - [x] 25.1 Implement behavior detection, stability score, and threshold ladder
     - Detect revenge trading, FOMO entries, overconfidence, tilt, impulsive trading, rapid re-entry, stop-loss removal, discipline deviation from trader actions
     - Implement `compute_trader_stability_score` exactly as `clamp(0.35×Discipline + 0.25×EmotionalControl + 0.20×RiskConsistency + 0.20×Patience, 0.0, 1.0)`
     - Emit `ai.psych.stability` on each behavioral event with score and components
@@ -581,8 +581,8 @@ graph TD
     - _Design: Components § Trader_Psychology_Engine_
     - _Property: 4 — Score and Formula Equivalence; Property: 8 — Edge-Triggered Emission of State Changes_
 
-- [ ] 26. AI_Trade_Ranking_Engine (`hedge_warm_ai.ranking`)
-  - [~] 26.1 Implement Trade_Confidence_Score and asynchronous ranking
+- [x] 26. AI_Trade_Ranking_Engine (`hedge_warm_ai.ranking`)
+  - [x] 26.1 Implement Trade_Confidence_Score and asynchronous ranking
     - Subscribe to `sig.emitted`; compute `Trade_Confidence_Score = clamp(0.30×Orderflow + 0.25×TechnicalStrength + 0.20×NewsSentiment + 0.15×MarketRegime + 0.10×TraderDiscipline, 0.0, 1.0)`
     - Emit `ai.rank.<correlation_id>` with original signal id, factor breakdown, and the score; the Hot_Path consumes this from WarmCache only — never blocks
     - Run asynchronously off the Hot_Path
@@ -596,8 +596,8 @@ graph TD
     - _Design: Components § AI_Trade_Ranking_Engine_
     - _Property: 3 — Latency Budget Compliance; Property: 4 — Score and Formula Equivalence; Property: 10 — Subscriber Receives Every Event Exactly Once Per Subscribed Subject_
 
-- [ ] 27. AI_Trade_Journal_Engine (`hedge_warm_ai.journal`)
-  - [~] 27.1 Implement post-trade journal generation and persistence
+- [x] 27. AI_Trade_Journal_Engine (`hedge_warm_ai.journal`)
+  - [x] 27.1 Implement post-trade journal generation and persistence
     - Subscribe to `exec.trade.closed` and produce a `JournalEntry` covering outcome, contributing strategy and signal, trader emotional state at entry and exit, prevailing regime, identified missed opportunities, and execution-quality metrics
     - Use Qwen2.5:14B for narrative reasoning and DeepSeek-R1 for deeper post-mortems via `ollama_client`
     - Persist each entry to TimescaleDB and Qdrant via Memory_RAG_Layer
@@ -611,8 +611,8 @@ graph TD
     - _Design: Components § AI_Trade_Journal_Engine_
     - _Property: 5 — Serialization and Persistence Round-Trip; Property: 10 — Subscriber Receives Every Event Exactly Once Per Subscribed Subject_
 
-- [ ] 28. AI_Governance_Engine (`hedge_warm_ai.governance`)
-  - [~] 28.1 Implement drift, confidence stability, hallucination, and prediction-quality tracking
+- [x] 28. AI_Governance_Engine (`hedge_warm_ai.governance`)
+  - [x] 28.1 Implement drift, confidence stability, hallucination, and prediction-quality tracking
     - Track per-AI-component metrics: model drift, confidence stability, hallucination indicators, prediction quality
     - On configured degradation threshold, reduce that component's influence weight in `Trade_Confidence_Score` and `Adaptive_Risk` per the configured policy
     - On configured critical threshold, place the affected component into `AI_Shadow_Mode`
@@ -647,8 +647,8 @@ graph TD
 
 ### D. Memory_RAG_Layer
 
-- [ ] 31. Qdrant vector store integration (`hedge_memory_rag.qdrant`)
-  - [-] 31.1 Provision Qdrant collections and embedding writers/readers
+- [x] 31. Qdrant vector store integration (`hedge_memory_rag.qdrant`)
+  - [x] 31.1 Provision Qdrant collections and embedding writers/readers
     - Create Qdrant collections: `trades`, `news`, `journal_entries`, `market_memory`, `psychology_history`
     - Implement Python writers/readers using CBOR encoding for embeddings
     - Expose kNN queries to the Warm_AI_Pipeline retrieval pipeline
@@ -660,8 +660,8 @@ graph TD
     - _Design: Memory_RAG_Layer_
     - _Property: 5 — Serialization and Persistence Round-Trip_
 
-- [ ] 32. PostgreSQL + TimescaleDB integration (`hedge_memory_rag.timescale`)
-  - [-] 32.1 Provision Timescale hypertables and writers/readers
+- [x] 32. PostgreSQL + TimescaleDB integration (`hedge_memory_rag.timescale`)
+  - [x] 32.1 Provision Timescale hypertables and writers/readers
     - Create hypertables for sampled ticks, fills, orders, AI scores, regime history, psychology timeline, broker metrics, journal entries
     - Implement async Python writers and readers using `asyncpg` with prepared statements
     - Expose time-window queries to the retrieval pipeline
@@ -673,8 +673,8 @@ graph TD
     - _Design: Memory_RAG_Layer_
     - _Property: 5 — Serialization and Persistence Round-Trip_
 
-- [ ] 33. Redis hot cache integration (`hedge_memory_rag.redis_cache`)
-  - [-] 33.1 Implement bounded LRU caches for hot read paths
+- [x] 33. Redis hot cache integration (`hedge_memory_rag.redis_cache`)
+  - [x] 33.1 Implement bounded LRU caches for hot read paths
     - Cache last N trades per symbol, last N news items per symbol, current regime, current Trader_Stability_Score
     - Implement async writers and readers; cache invalidation on write
     - _Requirements: 19.1, 19.4_
@@ -686,8 +686,8 @@ graph TD
     - _Design: Memory_RAG_Layer_
     - _Property: 11 — Self-Healing Policy_
 
-- [ ] 34. Retrieval pipeline (`hedge_memory_rag.retrieval`)
-  - [~] 34.1 Implement the five-stage retrieval pipeline
+- [x] 34. Retrieval pipeline (`hedge_memory_rag.retrieval`)
+  - [x] 34.1 Implement the five-stage retrieval pipeline
     - `trader_event_lookup → memory_retrieval (Qdrant kNN + Timescale window) → context_assembly → ollama_reasoning → recommendation_generation`
     - Expose retrieval queries to the Warm_AI_Pipeline only; enforce that the Hot_Path cannot synchronously invoke this pipeline (no NATS subject reachable from Hot_Path triggers a synchronous round-trip)
     - _Requirements: 19.5, 19.6, 19.7_
@@ -699,7 +699,7 @@ graph TD
     - _Design: Memory_RAG_Layer_
     - _Property: 2 — Authority Hierarchy and Hot_Path Purity; Property: 10 — Subscriber Receives Every Event Exactly Once Per Subscribed Subject_
 
-- [~] 35. Memory_RAG_Layer checkpoint
+- [x] 35. Memory_RAG_Layer checkpoint
   - Ensure all Memory_RAG_Layer tests pass, ask the user if questions arise.
 
 ---
@@ -823,7 +823,7 @@ graph TD
     - _Property: 8 — Edge-Triggered Emission of State Changes_
 
 - [ ] 44. WarmCache last-known-value lookup table (`hedge-warmcache`)
-  - [~] 44.1 Implement non-blocking last-known-value cache for the Risk_Engine
+  - [-] 44.1 Implement non-blocking last-known-value cache for the Risk_Engine
     - Implement `WarmCache` with atomic snapshots for `trade_confidence(correlation_id)`, `market_stability()`, `trader_stability()`, `priority(symbol)`, `news_impact(symbol)`
     - Populate via `WarmCacheUpdater` task subscribed to `ai.rank.*`, `ai.regime.changed`, `ai.psych.stability`, `ai.priority.changed.*`, `ai.news.impact.*`
     - The Risk_Engine reads via atomic load (< 50 µs) and never awaits the Warm_AI_Pipeline

@@ -9,7 +9,7 @@ use crate::models::{
     AiConfig, BrokerConfig, CapitalConfig, DegradedModeConfig, GovernanceConfig, HedgeConfig,
     ObservabilityConfig, OllamaConfig, OllamaModelConfig, OllamaRole, PostTargetPolicy,
     PsychologyThresholds, RankingFactorsConfig, RetentionConfig, RiskConfig, SessionConfig,
-    TraderPsychologyConfig, UiConfig, WarModeConfig,
+    TraderPsychologyConfig, UiConfig, WarModeConfig, WarmCacheConfig,
 };
 
 /// `09:15:00` IST.
@@ -156,6 +156,15 @@ pub fn observability() -> ObservabilityConfig {
     }
 }
 
+/// WarmCache defaults — design § Hot_Path Architecture (WarmCache).
+pub fn warm_cache() -> WarmCacheConfig {
+    WarmCacheConfig {
+        trade_confidence_lru_size: 8_192,
+        staleness_window_ms: 5_000,
+        nats_url: "nats://127.0.0.1:4222".to_string(),
+    }
+}
+
 /// Composed default `HedgeConfig` matching the design YAML exactly.
 pub fn hedge_config() -> HedgeConfig {
     HedgeConfig {
@@ -169,5 +178,6 @@ pub fn hedge_config() -> HedgeConfig {
         brokers: brokers(),
         ollama: ollama(),
         observability: observability(),
+        warm_cache: warm_cache(),
     }
 }

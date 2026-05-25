@@ -16,7 +16,7 @@ References:
 - Requirements 19.1, 19.3 — persistence + Timescale extension.
 """
 
-from .config_re_export import TimescaleSettings, load_settings  # noqa: F401
+from .config_re_export import TimescaleSettings, load_timescale_settings  # noqa: F401
 from .migrator import (
     MigrationError,
     apply_migrations,
@@ -27,9 +27,16 @@ from .models import HYPERTABLE_NAMES  # re-exported for convenience
 from .models import (
     AiScore,
     BrokerMetric,
+    GovernanceAction,
+    GovernanceLevel,
+    GovernanceMetric,
+    GovernanceMetricKind,
+    GovernanceMetricSample,
     JournalEntry,
     OrderRecord,
     FillRecord,
+    PrevDayKeyLevel,
+    PreviousDayMemoryRow,
     PsychologyTimelinePoint,
     RegimeTransition,
     TickSample,
@@ -41,7 +48,7 @@ from .writers import TimescaleWriter
 __all__ = [
     # config (re-exported for convenience)
     "TimescaleSettings",
-    "load_settings",
+    "load_timescale_settings",
     # migrations
     "HYPERTABLE_NAMES",
     "MigrationError",
@@ -52,8 +59,15 @@ __all__ = [
     "AiScore",
     "BrokerMetric",
     "FillRecord",
+    "GovernanceAction",
+    "GovernanceLevel",
+    "GovernanceMetric",
+    "GovernanceMetricKind",
+    "GovernanceMetricSample",
     "JournalEntry",
     "OrderRecord",
+    "PrevDayKeyLevel",
+    "PreviousDayMemoryRow",
     "PsychologyTimelinePoint",
     "RegimeTransition",
     "TickSample",
