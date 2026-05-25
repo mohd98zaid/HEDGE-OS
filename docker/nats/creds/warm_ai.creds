@@ -1,0 +1,30 @@
+# =============================================================================
+# PROJECT HEDGE — NATS user credentials TEMPLATE for account: warm_ai
+#
+# DO NOT COMMIT REAL JWTs OR NKEY SEEDS. This file ships as a placeholder so
+# the docker-compose volume mounts resolve. To mint real credentials run:
+#
+#   docker/nats/provision-creds.sh
+#
+# Account permissions enforced by `docker/nats/nats-server.conf`:
+#   publish allow  : ai.>  mem.>  obs.>
+#   publish DENY   : risk.>  exec.>  trader.>     (R21.3, R30.6 — non-negotiable)
+#   subscribe      : md.>  sig.>  exec.>  pos.>  mem.>  ops.>  ai.>
+#
+# The deny list is enforced server-side. Even if a Warm_AI_Pipeline component
+# is compromised and tries to publish `risk.decision.approved`, the NATS
+# server rejects the publish and emits a permission-violation log entry
+# consumable by the Self_Healing_Supervisor.
+# =============================================================================
+
+-----BEGIN NATS USER JWT-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_JWT
+------END NATS USER JWT------
+
+************************* IMPORTANT *************************
+NKEY Seed printed below can be used to sign and prove identity.
+NKEYs are sensitive and should be treated as secrets.
+-----BEGIN USER NKEY SEED-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_SEED
+------END USER NKEY SEED------
+*************************************************************

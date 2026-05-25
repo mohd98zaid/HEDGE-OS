@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_psych_stability.schema.json",
+  "title": "ai.psych.stability",
+  "description": "Trader_Psychology_Engine stability score and component factors. Subject: ai.psych.stability. Producer: Warm_AI_Pipeline. Consumers: Risk_Engine, UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["score", "components", "behaviors", "ts_ns"],
+  "properties": {
+    "score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["discipline", "emotional_control", "risk_consistency", "patience"],
+      "properties": {
+        "discipline":        { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "emotional_control": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "risk_consistency":  { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "patience":          { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "behaviors": { "type": "array", "items": { "type": "string", "minLength": 1, "maxLength": 64 }, "maxItems": 32 },
+    "ts_ns": { "type": "integer", "minimum": 0 }
+  }
+}

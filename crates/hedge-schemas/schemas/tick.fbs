@@ -1,0 +1,21 @@
+// Tick_v1: canonical normalized market tick (R1.5).
+// Layer: Hot_Path. Producer: Market_Data_Engine. Wire: NATS `md.tick.<sym>`.
+
+namespace hedge.v1;
+
+table Tick_v1 {
+  correlation_id: [ubyte:16];
+  symbol: uint;
+  exchange: byte;          // 0 = NSE, 1 = BSE
+  ltp_paise: long;
+  bid_paise: long;
+  ask_paise: long;
+  ltq: ulong;
+  total_buy_qty: ulong;
+  total_sell_qty: ulong;
+  ts_exchange_ns: ulong;
+  ts_recv_ns: ulong;
+}
+
+root_type Tick_v1;
+file_identifier "HEDG";

@@ -1,0 +1,17 @@
+# Keep Docker build context minimal.
+target/
+**/target/
+ui/node_modules/
+ui/dist/
+ui/.vite/
+.venv/
+**/__pycache__/
+**/*.pyc
+.git/
+.idea/
+.vscode/
+replay/
+docs/
+*.md
+!README.md
+!python/**/README.md

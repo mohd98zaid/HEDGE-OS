@@ -1,0 +1,36 @@
+[package]
+name = "hedge-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Foundational primitives for the PROJECT HEDGE Hot_Path: SymbolId, Px, ring buffers, monotonic clock helpers."
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# When enabled, the crate registers a `stats_alloc::INSTRUMENTED_SYSTEM` global
+# allocator and exposes the `alloc_harness` helpers used by Hot_Path crates to
+# enforce the no-allocation rule (R2.6, R3.4) on steady-state code paths.
+#
+# This is gated behind a feature so that release binaries pay zero cost for the
+# instrumented allocator; tests opt in with `--features alloc-tracking`.
+default = []
+alloc-tracking = ["dep:stats_alloc"]
+
+[dependencies]
+crossbeam = { workspace = true }
+arrayvec = { workspace = true }
+smallvec = { workspace = true }
+quanta = { workspace = true }
+ulid = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+# Optional, only registered as a global allocator when `alloc-tracking` is on.
+stats_alloc = { workspace = true, optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+stats_alloc = { workspace = true }

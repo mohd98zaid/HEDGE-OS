@@ -1,0 +1,29 @@
+// Order intent and lifecycle state (R6, R1.5).
+// Layer: Hot_Path. Producer: Risk_Engine -> Execution_Engine. Wire: NATS
+// `risk.decision.approved` (intent embedded in `RiskApproval_v1`) and
+// `exec.order.<state>` for `OrderState_v1`.
+
+namespace hedge.v1;
+
+table OrderIntent_v1 {
+  correlation_id: [ubyte:16];
+  symbol: uint;
+  side: ubyte;             // 0 = Buy, 1 = Sell
+  quantity: ulong;
+  order_type: ubyte;       // 0 = Market, 1 = Limit
+  limit_paise: long;
+  exchange: byte;          // 0 = NSE, 1 = BSE
+}
+
+table OrderState_v1 {
+  correlation_id: [ubyte:16];
+  broker_order_id: string;
+  state: ubyte;            // 0 New, 1 Submitted, 2 PartiallyFilled,
+                           // 3 Filled, 4 Cancelled, 5 Rejected
+  filled_qty: ulong;
+  avg_fill_paise: long;
+  ts_ns: ulong;
+}
+
+root_type OrderIntent_v1;
+file_identifier "HEDG";

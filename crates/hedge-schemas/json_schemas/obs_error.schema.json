@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/obs_error.schema.json",
+  "title": "obs.error.<source>",
+  "description": "Typed error event emitted by Hot_Path stages and Warm_AI_Pipeline services. Subject: obs.error.<source>.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "source", "code", "severity", "message", "ts_ns"],
+  "properties": {
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "source":         { "type": "string", "minLength": 1, "maxLength": 64 },
+    "code":           { "type": "string", "minLength": 1, "maxLength": 64 },
+    "severity":       { "type": "string", "enum": ["info", "warn", "error", "critical"] },
+    "message":        { "type": "string", "minLength": 1, "maxLength": 4096 },
+    "ts_ns":          { "type": "integer", "minimum": 0 }
+  }
+}

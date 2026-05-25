@@ -1,0 +1,28 @@
+# =============================================================================
+# PROJECT HEDGE — NATS user credentials TEMPLATE for account: obs_collector
+#
+# DO NOT COMMIT REAL JWTs OR NKEY SEEDS. This file ships as a placeholder so
+# the docker-compose volume mounts resolve. To mint real credentials run:
+#
+#   docker/nats/provision-creds.sh
+#
+# Account permissions enforced by `docker/nats/nats-server.conf`:
+#   publish    : (none — denied on `>`, read-only collector)
+#   subscribe  : >
+#
+# This credential is consumed by Prometheus exporters, the Loki log shipper,
+# and the Jaeger collector. It is read-only by design so a compromised
+# collector cannot inject events onto the bus.
+# =============================================================================
+
+-----BEGIN NATS USER JWT-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_JWT
+------END NATS USER JWT------
+
+************************* IMPORTANT *************************
+NKEY Seed printed below can be used to sign and prove identity.
+NKEYs are sensitive and should be treated as secrets.
+-----BEGIN USER NKEY SEED-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_SEED
+------END USER NKEY SEED------
+*************************************************************

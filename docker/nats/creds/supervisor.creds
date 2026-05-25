@@ -1,0 +1,31 @@
+# =============================================================================
+# PROJECT HEDGE — NATS user credentials TEMPLATE for account: supervisor
+#
+# DO NOT COMMIT REAL JWTs OR NKEY SEEDS. This file ships as a placeholder so
+# the docker-compose volume mounts resolve. To mint real credentials run:
+#
+#   docker/nats/provision-creds.sh
+#
+# Account permissions enforced by `docker/nats/nats-server.conf`:
+#   publish    : ops.action.>  obs.>
+#   subscribe  : obs.>  md.connection.>  cache.redis.>  broker.metric.>
+#                obs.latency.>  obs.budget.breach.>  obs.error.>
+#                ai.ollama.degraded  exec.broker.failover
+#
+# Self_Healing_Supervisor consumes the failure-detection event surface
+# (R25.1–R25.5) and emits recovery actions on `ops.action.*`. Subscribe
+# scope is intentionally narrow so the supervisor's own bandwidth and
+# blast radius stay small.
+# =============================================================================
+
+-----BEGIN NATS USER JWT-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_JWT
+------END NATS USER JWT------
+
+************************* IMPORTANT *************************
+NKEY Seed printed below can be used to sign and prove identity.
+NKEYs are sensitive and should be treated as secrets.
+-----BEGIN USER NKEY SEED-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_SEED
+------END USER NKEY SEED------
+*************************************************************

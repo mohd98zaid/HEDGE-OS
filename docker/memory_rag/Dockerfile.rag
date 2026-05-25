@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1.7
+# Memory_RAG_Layer service: Qdrant + Postgres/Timescale + Redis retrieval pipeline.
+
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        build-essential libgomp1 ca-certificates tini \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10200 --no-create-home hedge
+
+WORKDIR /opt/hedge
+COPY python/hedge_memory_rag/pyproject.toml /opt/hedge/pyproject.toml
+COPY python/hedge_memory_rag/README.md /opt/hedge/README.md
+COPY python/hedge_memory_rag/src /opt/hedge/src
+RUN pip install --no-cache-dir .
+
+USER hedge
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["hedge-rag"]

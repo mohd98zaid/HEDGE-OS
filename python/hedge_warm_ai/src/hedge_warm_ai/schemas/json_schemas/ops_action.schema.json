@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ops_action.schema.json",
+  "title": "ops.action.<target>",
+  "description": "Self_Healing_Supervisor remedial action. Subject: ops.action.<target>. Producer: Self_Healing_Supervisor. Consumers: All.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["target", "action", "reason", "ts_ns"],
+  "properties": {
+    "target":  { "type": "string", "minLength": 1, "maxLength": 64 },
+    "action":  { "type": "string", "enum": ["restart", "failover", "drain", "isolate", "reconnect", "warn"] },
+    "reason":  { "type": "string", "minLength": 1, "maxLength": 512 },
+    "attempt": { "type": "integer", "minimum": 0, "maximum": 1000 },
+    "ts_ns":   { "type": "integer", "minimum": 0 }
+  }
+}

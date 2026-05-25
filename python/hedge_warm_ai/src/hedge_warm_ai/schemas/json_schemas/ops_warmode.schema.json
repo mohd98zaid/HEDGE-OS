@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ops_warmode.schema.json",
+  "title": "ops.warmode.<phase>",
+  "description": "Market_Open_War_Mode start/end announcement. Subjects: ops.warmode.start, ops.warmode.end. Producer: Session manager / War_Mode. Consumers: All.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id", "phase", "ts_ns"],
+  "properties": {
+    "session_id":      { "type": "integer", "minimum": 0 },
+    "phase":           { "type": "string", "enum": ["start", "end"] },
+    "min_confidence":  { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "scan_multiplier": { "type": "number", "minimum": 0.0, "maximum": 100.0 },
+    "ts_ns":           { "type": "integer", "minimum": 0 }
+  }
+}

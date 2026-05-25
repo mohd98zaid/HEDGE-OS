@@ -1,0 +1,191 @@
+# PROJECT HEDGE — Ollama_Infrastructure (R10).
+#
+# Hosts the four local LLM microservices required by R10.1–R10.4 as
+# independent containers (R10.5), each with:
+#   * its own GGUF Q4_K_M weights (R10.6),
+#   * dedicated GPU pinning (R10.5),
+#   * the streaming Ollama HTTP API exposed only on the private
+#     `hedge-ollama-net` Docker network (R10.7),
+#   * **no** host port binding — there is no `ports:` key on any model
+#     service. Reachability from outside the host is blocked at the L3
+#     firewall (`infra/firewall/`); reachability from inside the host is
+#     mediated by the shared Docker network and the Warm_AI_Pipeline
+#     containers that join it.
+#
+# Bringing it up:
+#   docker compose -f docker-compose.ollama.yml up -d
+#
+# Pre-pulling the weights (one-shot, executed on the host the first time):
+#   docker exec ollama-qwen     ollama pull qwen2.5:14b-instruct-q4_K_M
+#   docker exec ollama-mistral  ollama pull mistral:7b-instruct-q4_K_M
+#   docker exec ollama-deepseek ollama pull deepseek-r1:7b-q4_K_M
+#   docker exec ollama-phi      ollama pull phi3:mini-q4_K_M
+#
+# Each model uses its own named volume so weights persist across upgrades
+# of the Ollama image. Volumes are NOT shared between models — different
+# models may pin different Ollama daemon versions.
+#
+# References:
+#   * Requirements §10 (Ollama AI Infrastructure)
+#   * Design § Components § Ollama_Infrastructure
+#   * `infra/README.md` for the firewall + networking philosophy.
+
+name: project-hedge-ollama
+
+# ---------------------------------------------------------------------------
+# Networks ------------------------------------------------------------------
+#
+# A dedicated bridge network for Ollama traffic. The Warm_AI_Pipeline
+# Python services join this network in the top-level `docker-compose.yml`
+# via an external network reference (`hedge-ollama-net`) so the two stacks
+# can be brought up and torn down independently.
+# ---------------------------------------------------------------------------
+
+networks:
+  hedge-ollama-net:
+    driver: bridge
+    name: hedge-ollama-net
+    # Internal-ish: this network is *not* `internal: true` because the
+    # Ollama daemon must, on first boot, fetch its own model weights from
+    # `registry.ollama.ai`. After the initial pull, day-to-day inference
+    # stays on this private bridge.
+
+# ---------------------------------------------------------------------------
+# Volumes -------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+volumes:
+  hedge-ollama-qwen-data:
+  hedge-ollama-mistral-data:
+  hedge-ollama-deepseek-data:
+  hedge-ollama-phi-data:
+
+# ---------------------------------------------------------------------------
+# Anchors -------------------------------------------------------------------
+#
+# Every Ollama service shares the same image, restart policy, healthcheck,
+# and runtime knobs; only the model name, GPU device, and volume differ.
+# ---------------------------------------------------------------------------
+
+x-ollama-defaults: &ollama-defaults
+  image: ollama/ollama:0.3.12
+  restart: unless-stopped
+  networks: [hedge-ollama-net]
+  # Force GGUF Q4_K_M quantization at startup. The actual `ollama pull`
+  # step is documented above; the daemon picks the local weight on
+  # subsequent restarts. We still set OLLAMA_NUM_PARALLEL conservatively
+  # so a single container does not saturate its GPU.
+  environment: &ollama-env
+    OLLAMA_HOST: "0.0.0.0:11434"
+    OLLAMA_KEEP_ALIVE: "30m"
+    OLLAMA_NUM_PARALLEL: "1"
+    OLLAMA_MAX_LOADED_MODELS: "1"
+    OLLAMA_FLASH_ATTENTION: "1"
+    OLLAMA_NOPRUNE: "1"
+    # Belt-and-braces: even if the host firewall is misconfigured, the
+    # daemon refuses to call out for telemetry or analytics.
+    OLLAMA_NOHISTORY: "1"
+  healthcheck:
+    test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:11434/api/tags >/dev/null || exit 1"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 60s
+
+# ---------------------------------------------------------------------------
+# Services ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+services:
+
+  # === Qwen2.5:14B — primary reasoning (R10.1) =============================
+  ollama-qwen:
+    <<: *ollama-defaults
+    container_name: ollama-qwen
+    hostname: ollama-qwen
+    expose:
+      - "11434"
+    environment:
+      <<: *ollama-env
+      HEDGE_OLLAMA_MODEL: "qwen2.5:14b-instruct-q4_K_M"
+      HEDGE_OLLAMA_ROLE:  "primary"
+    volumes:
+      - hedge-ollama-qwen-data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["0"]
+
+  # === Mistral:7B — fast assistant (R10.2) =================================
+  ollama-mistral:
+    <<: *ollama-defaults
+    container_name: ollama-mistral
+    hostname: ollama-mistral
+    expose:
+      - "11434"
+    environment:
+      <<: *ollama-env
+      HEDGE_OLLAMA_MODEL: "mistral:7b-instruct-q4_K_M"
+      HEDGE_OLLAMA_ROLE:  "fast"
+    volumes:
+      - hedge-ollama-mistral-data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["1"]
+
+  # === DeepSeek-R1 — deep reasoning (R10.3) ================================
+  ollama-deepseek:
+    <<: *ollama-defaults
+    container_name: ollama-deepseek
+    hostname: ollama-deepseek
+    expose:
+      - "11434"
+    environment:
+      <<: *ollama-env
+      HEDGE_OLLAMA_MODEL: "deepseek-r1:7b-q4_K_M"
+      HEDGE_OLLAMA_ROLE:  "deep"
+    volumes:
+      - hedge-ollama-deepseek-data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["2"]
+
+  # === Phi — lightweight assistant (R10.4) =================================
+  ollama-phi:
+    <<: *ollama-defaults
+    container_name: ollama-phi
+    hostname: ollama-phi
+    expose:
+      - "11434"
+    environment:
+      <<: *ollama-env
+      HEDGE_OLLAMA_MODEL: "phi3:mini-q4_K_M"
+      HEDGE_OLLAMA_ROLE:  "lightweight"
+    volumes:
+      - hedge-ollama-phi-data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+              device_ids: ["3"]
+
+# Note on GPU device_ids:
+#   The mapping {qwen=0, mistral=1, deepseek=2, phi=3} assumes a 4-GPU
+#   host. On hosts with fewer GPUs, set `HEDGE_GPU_QWEN`, `HEDGE_GPU_PHI`,
+#   etc. via environment overrides and reuse the same device id across
+#   models that fit together.  # TODO: production protocol — automate
+#   GPU placement based on `nvidia-smi --query-gpu=memory.free` at deploy
+#   time.

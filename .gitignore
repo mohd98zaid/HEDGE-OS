@@ -1,0 +1,41 @@
+# Rust
+target/
+**/target/
+Cargo.lock.bak
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+
+# Node / UI
+ui/node_modules/
+ui/dist/
+ui/.vite/
+ui/coverage/
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local config
+.env
+.env.local
+/etc/hedge/local.yaml
+
+# Replay logs
+replay/
+*.log
+
+# NATS — generated operator/account JWT artefacts. The committed files
+# are placeholders; running docker/nats/provision-creds.sh produces real
+# JWTs that must NOT be committed.
+docker/nats/generated/

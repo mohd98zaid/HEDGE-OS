@@ -1,0 +1,540 @@
+# PROJECT HEDGE — top-level deployment (Mumbai VPS, R29).
+#
+# This compose file deploys, on a single internal network `hedge-net`:
+#   * Infrastructure: NATS, Redis, Postgres+Timescale, Qdrant, Prometheus,
+#                     Loki, Jaeger, Grafana.
+#   * Hot_Path Rust services (built from docker/hot_path/Dockerfile.<svc>).
+#   * Warm_AI_Pipeline Python services (built from docker/warm_ai/Dockerfile.<svc>).
+#   * Memory_RAG_Layer service (docker/memory_rag/Dockerfile.rag).
+#
+# Every service is deliberately tagged with profiles so an operator can bring
+# up just the foundation, just the Hot_Path, or the full stack:
+#   docker compose --profile infra up
+#   docker compose --profile hot_path up
+#   docker compose --profile warm_ai up
+#   docker compose --profile full up
+#
+# Concrete configuration (broker creds, NATS ACLs, JWTs) lands in tasks 6.1
+# and 7.1; this file gives the topology a working skeleton today.
+
+name: project-hedge
+
+networks:
+  hedge-net:
+    driver: bridge
+
+volumes:
+  hedge-nats-data:
+  hedge-redis-data:
+  hedge-postgres-data:
+  hedge-qdrant-data:
+  hedge-prometheus-data:
+  hedge-loki-data:
+  hedge-grafana-data:
+  hedge-replay-data:
+
+# ---- Anchors ---------------------------------------------------------------
+
+x-rust-build: &rust-build
+  context: .
+  args:
+    RUST_VERSION: "1.78"
+    DEBIAN_VERSION: "bookworm-slim"
+
+x-warm-ai-build: &warm-ai-build
+  context: .
+  args:
+    PYTHON_VERSION: "3.11"
+    WARM_AI_BASE: "hedge/warm-ai-base:dev"
+
+x-hedge-defaults: &hedge-defaults
+  # NOTE: superseded by `x-hedge-creds-hot-path` after task 7.1 — every
+  # Hot_Path service now consumes the hot_path account credentials. This
+  # anchor is kept as documentation of the no-auth env baseline.
+  restart: unless-stopped
+  networks:
+    - hedge-net
+  environment:
+    - RUST_LOG=info
+    - HEDGE_NATS_URL=nats://nats:4222
+    - HEDGE_REDIS_URL=redis://redis:6379
+    - HEDGE_POSTGRES_URL=postgresql://hedge:hedge@postgres:5432/hedge
+    - HEDGE_QDRANT_URL=http://qdrant:6333
+    - HEDGE_OTLP_ENDPOINT=http://jaeger:4317
+    - HEDGE_PROMETHEUS_PORT=9100
+    - TZ=Asia/Kolkata
+
+x-warm-ai-defaults: &warm-ai-defaults
+  # NOTE: superseded by `x-warm-ai-creds` after task 7.1 — Warm_AI services
+  # now consume the warm_ai account credentials.
+  restart: unless-stopped
+  networks:
+    - hedge-net
+  environment:
+    - PYTHONUNBUFFERED=1
+    - HEDGE_NATS_URL=nats://nats:4222
+    - HEDGE_REDIS_URL=redis://redis:6379
+    - HEDGE_POSTGRES_URL=postgresql://hedge:hedge@postgres:5432/hedge
+    - HEDGE_QDRANT_URL=http://qdrant:6333
+    - HEDGE_OTLP_ENDPOINT=http://jaeger:4317
+    - HEDGE_OLLAMA_URL=http://host.docker.internal:11434
+    - HEDGE_PROMETHEUS_PORT=9200
+    - TZ=Asia/Kolkata
+
+# --- NATS credentials anchors (task 7.1) ----------------------------------
+#
+# Each Hot_Path / Warm_AI / UI / supervisor service mounts ITS account's
+# `.creds` file at a fixed in-container path and sets `HEDGE_NATS_CREDS`
+# so the Rust client picks the right credentials at startup. The four
+# anchors below pre-bake the volume + env for the four account profiles.
+#
+# Account → consumer mapping (also encoded in `docs/nats-acls.md`):
+#   hot_path     → market-data, orderflow, features, signals, risk, exec,
+#                  position, replay, session
+#   warm_ai      → news, regime, priority, prevday, psych, rank, journal,
+#                  governance, shadow, rag
+#   ui_gateway   → ui-gateway
+#   supervisor   → supervisor
+#
+# Prometheus / Grafana / Loki / Jaeger are not NATS consumers (they scrape
+# Prometheus exporters and tail Loki). The `obs_collector` account exists
+# for any future on-bus collector and is not wired into compose today.
+
+x-hedge-creds-hot-path: &hedge-creds-hot-path
+  restart: unless-stopped
+  networks:
+    - hedge-net
+  volumes:
+    - ./docker/nats/creds/hot_path.creds:/etc/hedge/nats/hot_path.creds:ro
+  environment:
+    - RUST_LOG=info
+    # Dev profile: user:pass embedded; falls back to a stable dev token
+    # when the env var is unset. Production profile: drop the user:pass
+    # prefix and rely on HEDGE_NATS_CREDS (operator+JWT mode).
+    - HEDGE_NATS_URL=nats://hot_path:${HEDGE_HOT_PATH_PASSWORD:-dev_hot_path}@nats:4222
+    - HEDGE_NATS_CREDS=/etc/hedge/nats/hot_path.creds
+    - HEDGE_REDIS_URL=redis://redis:6379
+    - HEDGE_POSTGRES_URL=postgresql://hedge:hedge@postgres:5432/hedge
+    - HEDGE_QDRANT_URL=http://qdrant:6333
+    - HEDGE_OTLP_ENDPOINT=http://jaeger:4317
+    - HEDGE_PROMETHEUS_PORT=9100
+    - TZ=Asia/Kolkata
+
+x-hedge-creds-ui: &hedge-creds-ui
+  restart: unless-stopped
+  networks:
+    - hedge-net
+  volumes:
+    - ./docker/nats/creds/ui_gateway.creds:/etc/hedge/nats/ui_gateway.creds:ro
+  environment:
+    - RUST_LOG=info
+    - HEDGE_NATS_URL=nats://ui_gateway:${HEDGE_UI_GATEWAY_PASSWORD:-dev_ui_gateway}@nats:4222
+    - HEDGE_NATS_CREDS=/etc/hedge/nats/ui_gateway.creds
+    - HEDGE_REDIS_URL=redis://redis:6379
+    - HEDGE_POSTGRES_URL=postgresql://hedge:hedge@postgres:5432/hedge
+    - HEDGE_QDRANT_URL=http://qdrant:6333
+    - HEDGE_OTLP_ENDPOINT=http://jaeger:4317
+    - HEDGE_PROMETHEUS_PORT=9100
+    - TZ=Asia/Kolkata
+
+x-hedge-creds-supervisor: &hedge-creds-supervisor
+  restart: unless-stopped
+  networks:
+    - hedge-net
+  volumes:
+    - ./docker/nats/creds/supervisor.creds:/etc/hedge/nats/supervisor.creds:ro
+  environment:
+    - RUST_LOG=info
+    - HEDGE_NATS_URL=nats://supervisor:${HEDGE_SUPERVISOR_PASSWORD:-dev_supervisor}@nats:4222
+    - HEDGE_NATS_CREDS=/etc/hedge/nats/supervisor.creds
+    - HEDGE_REDIS_URL=redis://redis:6379
+    - HEDGE_POSTGRES_URL=postgresql://hedge:hedge@postgres:5432/hedge
+    - HEDGE_QDRANT_URL=http://qdrant:6333
+    - HEDGE_OTLP_ENDPOINT=http://jaeger:4317
+    - HEDGE_PROMETHEUS_PORT=9100
+    - TZ=Asia/Kolkata
+
+x-warm-ai-creds: &warm-ai-creds
+  restart: unless-stopped
+  networks:
+    - hedge-net
+  volumes:
+    - ./docker/nats/creds/warm_ai.creds:/etc/hedge/nats/warm_ai.creds:ro
+  environment:
+    - PYTHONUNBUFFERED=1
+    - HEDGE_NATS_URL=nats://warm_ai:${HEDGE_WARM_AI_PASSWORD:-dev_warm_ai}@nats:4222
+    - HEDGE_NATS_CREDS=/etc/hedge/nats/warm_ai.creds
+    - HEDGE_REDIS_URL=redis://redis:6379
+    - HEDGE_POSTGRES_URL=postgresql://hedge:hedge@postgres:5432/hedge
+    - HEDGE_QDRANT_URL=http://qdrant:6333
+    - HEDGE_OTLP_ENDPOINT=http://jaeger:4317
+    - HEDGE_OLLAMA_URL=http://host.docker.internal:11434
+    - HEDGE_PROMETHEUS_PORT=9200
+    - TZ=Asia/Kolkata
+
+# ---- Services --------------------------------------------------------------
+
+services:
+
+  # === Infrastructure ===
+
+  nats:
+    image: nats:2.10-alpine
+    profiles: ["infra", "full"]
+    command: ["-c", "/etc/nats/nats-server.conf"]
+    volumes:
+      - ./docker/nats/nats-server.conf:/etc/nats/nats-server.conf:ro
+      - hedge-nats-data:/data
+    # Dev-profile passwords. NATS substitutes `$VAR` references in the
+    # config file from the process environment. For the production
+    # operator+JWT profile, remove this `environment` block and replace
+    # the inline accounts in `nats-server.conf` with an
+    # `include ./generated/accounts.conf` directive after running
+    # `docker/nats/provision-creds.sh`. Real production deployments must
+    # NOT use the `dev_*` defaults below.
+    environment:
+      - HEDGE_HOT_PATH_PASSWORD=${HEDGE_HOT_PATH_PASSWORD:-dev_hot_path}
+      - HEDGE_WARM_AI_PASSWORD=${HEDGE_WARM_AI_PASSWORD:-dev_warm_ai}
+      - HEDGE_UI_GATEWAY_PASSWORD=${HEDGE_UI_GATEWAY_PASSWORD:-dev_ui_gateway}
+      - HEDGE_SUPERVISOR_PASSWORD=${HEDGE_SUPERVISOR_PASSWORD:-dev_supervisor}
+      - HEDGE_OBS_COLLECTOR_PASSWORD=${HEDGE_OBS_COLLECTOR_PASSWORD:-dev_obs_collector}
+      - HEDGE_SYS_PASSWORD=${HEDGE_SYS_PASSWORD:-dev_sys}
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    networks:
+      - hedge-net
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    profiles: ["infra", "full"]
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - hedge-redis-data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - hedge-net
+    restart: unless-stopped
+
+  postgres:
+    image: timescale/timescaledb:2.16.1-pg16
+    profiles: ["infra", "full"]
+    environment:
+      - POSTGRES_DB=hedge
+      - POSTGRES_USER=hedge
+      - POSTGRES_PASSWORD=hedge
+    volumes:
+      - hedge-postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-timescaledb.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - hedge-net
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.10.1
+    profiles: ["infra", "full"]
+    volumes:
+      - hedge-qdrant-data:/qdrant/storage
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    networks:
+      - hedge-net
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["infra", "full"]
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - hedge-prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - hedge-net
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:3.1.1
+    profiles: ["infra", "full"]
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./docker/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - hedge-loki-data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - hedge-net
+    restart: unless-stopped
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.59
+    profiles: ["infra", "full"]
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686"   # UI
+      - "4317:4317"     # OTLP gRPC
+      - "4318:4318"     # OTLP HTTP
+    networks:
+      - hedge-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["infra", "full"]
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=hedge
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - hedge-grafana-data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - hedge-net
+    depends_on:
+      - prometheus
+      - loki
+      - jaeger
+    restart: unless-stopped
+
+  # === Hot_Path Rust services ===
+
+  hedge-market-data:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.market-data
+    image: hedge/market-data:dev
+    depends_on: [nats, redis]
+
+  hedge-orderflow:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.orderflow
+    image: hedge/orderflow:dev
+    depends_on: [nats, redis, hedge-market-data]
+
+  hedge-features:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.features
+    image: hedge/features:dev
+    depends_on: [nats, redis, hedge-market-data, hedge-orderflow]
+
+  hedge-signals:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.signals
+    image: hedge/signals:dev
+    depends_on: [nats, redis, hedge-features]
+
+  hedge-risk:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.risk
+    image: hedge/risk:dev
+    depends_on: [nats, redis, hedge-signals]
+
+  hedge-exec:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.exec
+    image: hedge/exec:dev
+    depends_on: [nats, redis, hedge-risk]
+
+  hedge-position:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.position
+    image: hedge/position:dev
+    depends_on: [nats, redis, hedge-exec]
+
+  hedge-supervisor:
+    <<: *hedge-creds-supervisor
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.supervisor
+    image: hedge/supervisor:dev
+    depends_on: [nats, redis]
+
+  hedge-session:
+    <<: *hedge-creds-hot-path
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.session
+    image: hedge/session:dev
+    depends_on: [nats]
+
+  hedge-replay:
+    # `hedge-replay` adds a named-volume mount on top of the hot_path creds
+    # mount, so we cannot anchor-merge the volumes list here — list-style
+    # keys are replaced wholesale by the service-level definition. Instead
+    # we duplicate the env block and combine both volumes inline.
+    restart: unless-stopped
+    networks:
+      - hedge-net
+    profiles: ["hot_path", "full"]
+    environment:
+      - RUST_LOG=info
+      - HEDGE_NATS_URL=nats://hot_path:${HEDGE_HOT_PATH_PASSWORD:-dev_hot_path}@nats:4222
+      - HEDGE_NATS_CREDS=/etc/hedge/nats/hot_path.creds
+      - HEDGE_REDIS_URL=redis://redis:6379
+      - HEDGE_POSTGRES_URL=postgresql://hedge:hedge@postgres:5432/hedge
+      - HEDGE_QDRANT_URL=http://qdrant:6333
+      - HEDGE_OTLP_ENDPOINT=http://jaeger:4317
+      - HEDGE_PROMETHEUS_PORT=9100
+      - TZ=Asia/Kolkata
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.replay
+    image: hedge/replay:dev
+    volumes:
+      - ./docker/nats/creds/hot_path.creds:/etc/hedge/nats/hot_path.creds:ro
+      - hedge-replay-data:/var/lib/hedge/replay
+    depends_on: [nats, redis]
+
+  hedge-ui-gateway:
+    <<: *hedge-creds-ui
+    profiles: ["hot_path", "full"]
+    build:
+      <<: *rust-build
+      dockerfile: docker/hot_path/Dockerfile.ui-gateway
+    image: hedge/ui-gateway:dev
+    ports:
+      - "8080:8080"
+    depends_on: [nats]
+
+  # === Warm_AI_Pipeline shared base image build (one-shot) ===
+
+  warm-ai-base:
+    profiles: ["warm_ai", "full"]
+    build:
+      context: .
+      dockerfile: docker/warm_ai/Dockerfile.base
+      args:
+        PYTHON_VERSION: "3.11"
+    image: hedge/warm-ai-base:dev
+    command: ["true"]
+    networks:
+      - hedge-net
+
+  # === Warm_AI_Pipeline services ===
+
+  hedge-news:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.news
+    image: hedge/warm-ai-news:dev
+    depends_on: [nats, warm-ai-base, qdrant]
+
+  hedge-regime:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.regime
+    image: hedge/warm-ai-regime:dev
+    depends_on: [nats, warm-ai-base]
+
+  hedge-priority:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.priority
+    image: hedge/warm-ai-priority:dev
+    depends_on: [nats, warm-ai-base]
+
+  hedge-prevday:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.prevday
+    image: hedge/warm-ai-prevday:dev
+    depends_on: [nats, warm-ai-base, postgres]
+
+  hedge-psych:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.psychology
+    image: hedge/warm-ai-psych:dev
+    depends_on: [nats, warm-ai-base, postgres]
+
+  hedge-rank:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.ranking
+    image: hedge/warm-ai-rank:dev
+    depends_on: [nats, warm-ai-base, redis]
+
+  hedge-journal:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.journal
+    image: hedge/warm-ai-journal:dev
+    depends_on: [nats, warm-ai-base, postgres]
+
+  hedge-governance:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.governance
+    image: hedge/warm-ai-governance:dev
+    depends_on: [nats, warm-ai-base]
+
+  hedge-shadow:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      <<: *warm-ai-build
+      dockerfile: docker/warm_ai/Dockerfile.shadow
+    image: hedge/warm-ai-shadow:dev
+    depends_on: [nats, warm-ai-base, postgres]
+
+  # === Memory_RAG_Layer ===
+
+  hedge-rag:
+    <<: *warm-ai-creds
+    profiles: ["warm_ai", "full"]
+    build:
+      context: .
+      dockerfile: docker/memory_rag/Dockerfile.rag
+      args:
+        PYTHON_VERSION: "3.11"
+    image: hedge/memory-rag:dev
+    depends_on: [nats, qdrant, postgres, redis]

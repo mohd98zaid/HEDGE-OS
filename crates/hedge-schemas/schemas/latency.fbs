@@ -1,0 +1,17 @@
+// LatencyRecord_v1: per-stage latency observation (R9, R28).
+// Layer: Hot_Path observability. Producer: every Hot_Path stage via the
+// `LatencyTimer` RAII guard. Wire: NATS `obs.latency.<stage>`, plus
+// `obs.budget.breach.<stage>` when `breach == true`.
+
+namespace hedge.v1;
+
+table LatencyRecord_v1 {
+  correlation_id: [ubyte:16];
+  stage: ubyte;            // Stage discriminant; see hedge_schemas::stage.
+  nanos: ulong;
+  budget_nanos: ulong;
+  breach: bool;
+}
+
+root_type LatencyRecord_v1;
+file_identifier "HEDG";

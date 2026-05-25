@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_news_impact.schema.json",
+  "title": "ai.news.impact.<symbol>",
+  "description": "News_Intelligence emission of per-symbol news impact. Subject: ai.news.impact.<sym>. Producer: Warm_AI_Pipeline. Consumers: Risk_Engine, Signal_Engine (gating), UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "symbol", "headline_id", "sentiment", "impact_magnitude", "fast_path", "slow_path_pending", "ts_ns"],
+  "properties": {
+    "correlation_id":    { "type": "string", "minLength": 1, "maxLength": 64 },
+    "symbol":            { "type": "string", "minLength": 1, "maxLength": 32 },
+    "headline_id":       { "type": "string", "minLength": 1, "maxLength": 128 },
+    "sentiment":         { "type": "number", "minimum": -1.0, "maximum": 1.0 },
+    "impact_magnitude":  { "type": "number", "minimum": 0.0,  "maximum": 1.0 },
+    "fast_path":         { "type": "boolean" },
+    "slow_path_pending": { "type": "boolean" },
+    "ts_ns":             { "type": "integer", "minimum": 0 }
+  }
+}

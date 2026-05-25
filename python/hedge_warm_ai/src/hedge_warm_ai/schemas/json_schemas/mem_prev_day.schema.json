@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/mem_prev_day.schema.json",
+  "title": "mem.prev_day.<symbol>",
+  "description": "Previous_Day_Memory_Engine summary of key levels and behaviour for a symbol on the prior trading day. Subject: mem.prev_day.<sym>. Producer: Memory_RAG_Layer. Consumers: Signal_Engine, Risk_Engine, UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["symbol", "session_date", "open_paise", "high_paise", "low_paise", "close_paise", "vwap_paise", "key_levels", "ts_ns"],
+  "properties": {
+    "symbol":       { "type": "string", "minLength": 1, "maxLength": 32 },
+    "session_date": { "type": "string", "format": "date" },
+    "open_paise":   { "type": "integer" },
+    "high_paise":   { "type": "integer" },
+    "low_paise":    { "type": "integer" },
+    "close_paise":  { "type": "integer" },
+    "vwap_paise":   { "type": "integer" },
+    "key_levels": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "price_paise"],
+        "properties": {
+          "kind":        { "type": "string", "enum": ["support", "resistance", "swing_high", "swing_low", "vwap", "open", "close"] },
+          "price_paise": { "type": "integer" }
+        }
+      }
+    },
+    "ts_ns": { "type": "integer", "minimum": 0 }
+  }
+}

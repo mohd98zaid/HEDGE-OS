@@ -1,0 +1,51 @@
+[package]
+name = "hedge-exec"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Execution_Engine: BrokerRouter, OrderLifecycleTracker, retry, failover. Hot_Path."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-exec"
+path = "src/main.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+hedge-risk = { path = "../hedge-risk" }
+# `hedge-broker-api` is the workspace-shared `BrokerAdapter` trait
+# crate (task 17.1). The Execution_Engine routes through trait
+# objects of this trait; concrete broker crates implement it.
+hedge-broker-api = { path = "../hedge-broker-api" }
+# Concrete per-broker crates are NOT direct dependencies. The binary
+# wires them in only after task 17.1 ships their implementations; until
+# then the binary uses a local placeholder `NotReady` adapter so the
+# Hot_Path purity check stays clean (no transitive `reqwest` from any
+# broker crate has to flow through `hedge-exec`'s dep graph).
+
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+smallvec = { workspace = true }
+# `async-trait` is required because the `BrokerAdapter` trait is used
+# behind `Arc<dyn BrokerAdapter>` in the router and engine. Native
+# `async fn in trait` is stable in 1.75 but does not yet support dyn
+# dispatch with Send-bound futures the way the workspace's `panic =
+# "abort"` profile expects, so we go through the macro.
+async-trait = "0.1"
+
+[dev-dependencies]
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

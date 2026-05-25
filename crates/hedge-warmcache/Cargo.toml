@@ -1,0 +1,21 @@
+[package]
+name = "hedge-warmcache"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Last-known-value cache populated asynchronously from ai.* NATS subjects. Read by the Hot_Path with no blocking."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+tokio = { workspace = true }
+parking_lot = { workspace = true }
+once_cell = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }

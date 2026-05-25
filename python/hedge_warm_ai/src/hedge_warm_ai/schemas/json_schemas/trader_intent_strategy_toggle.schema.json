@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/trader_intent_strategy_toggle.schema.json",
+  "title": "trader.intent.strategy_toggle",
+  "description": "Trader toggling a Signal_Engine strategy on or off. Subject: trader.intent.strategy_toggle. Producer: ui-gateway. Consumer: Risk_Engine, Signal_Engine.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "strategy", "enabled", "actor", "ts_ns"],
+  "properties": {
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "strategy": { "type": "string", "enum": ["OpeningRangeBreakout", "VwapPullback", "MomentumBreakout", "LiquiditySweepReversal", "OptionsOiExpansionBreakout", "VolatilityCompressionBreakout"] },
+    "enabled":        { "type": "boolean" },
+    "actor":          { "type": "string", "minLength": 1, "maxLength": 64 },
+    "ts_ns":          { "type": "integer", "minimum": 0 }
+  }
+}

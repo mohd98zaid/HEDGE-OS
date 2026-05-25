@@ -1,0 +1,46 @@
+[package]
+name = "hedge-features"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Feature_Extraction_Engine: incremental VWAP/ATR/EMA/momentum per symbol. Hot_Path."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-features"
+path = "src/bin/main.rs"
+
+[features]
+# Mirror of `hedge-core::alloc-tracking` — when enabled, the
+# `assert_no_alloc` harness uses a real `stats_alloc::Region` instead of
+# a no-op. Activate with `cargo test -p hedge-features --features alloc-tracking`.
+alloc-tracking = ["hedge-core/alloc-tracking"]
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+
+# Workspace pins (R3.6 / R30.8: NO pandas, NO NumPy, NO Python).
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+quanta = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+stats_alloc = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

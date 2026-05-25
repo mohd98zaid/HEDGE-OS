@@ -1,0 +1,113 @@
+# PROJECT HEDGE — Cloud LLM Egress Denylist (R10.8)
+#
+# This file is the single source of truth for the set of fully-qualified
+# domain names that the Ollama_Infrastructure host MUST NOT be able to
+# reach over the network. The egress firewall (`egress-deny.rules`) is
+# generated from this list.
+#
+# Format
+# ------
+# One domain per non-empty, non-comment line. Lines beginning with `#` are
+# ignored. Trailing whitespace is stripped. The matcher is suffix-based:
+# adding `openai.com` blocks `api.openai.com`, `cdn.openai.com`, etc.
+#
+# Coverage philosophy
+# -------------------
+# We block at three layers:
+#   1. Provider apex domains and their well-known subdomains (this file).
+#   2. Provider IP CIDRs at the L3 layer (see `egress-deny.rules` § "CIDRs").
+#   3. SNI (TLS Server Name Indication) at the L4 layer (see § "SNI sets").
+#
+# When in doubt, prefer adding a new entry over removing one. The Ollama
+# host has zero legitimate need to talk to public LLM providers; if a
+# Warm_AI_Pipeline component requires reasoning, it must reach a *local*
+# Ollama container on the private Docker network.
+#
+# References
+# ----------
+# - Requirements §10.8: "Ollama_Infrastructure SHALL NOT make outbound
+#   calls to any cloud LLM provider."
+# - Design § Components § Ollama_Infrastructure: "Egress to public LLM
+#   providers is firewalled at the host level."
+
+# --- OpenAI -----------------------------------------------------------------
+openai.com
+api.openai.com
+chat.openai.com
+platform.openai.com
+oai.azure.com
+openai.azure.com
+
+# --- Anthropic --------------------------------------------------------------
+anthropic.com
+api.anthropic.com
+claude.ai
+console.anthropic.com
+
+# --- Google AI / Vertex AI / Gemini -----------------------------------------
+generativelanguage.googleapis.com
+aiplatform.googleapis.com
+gemini.google.com
+makersuite.google.com
+ai.google.dev
+
+# --- Cohere -----------------------------------------------------------------
+cohere.com
+cohere.ai
+api.cohere.ai
+api.cohere.com
+
+# --- Mistral cloud (la Plateforme) ------------------------------------------
+mistral.ai
+api.mistral.ai
+console.mistral.ai
+
+# --- AWS Bedrock ------------------------------------------------------------
+# Bedrock uses regional `bedrock.<region>.amazonaws.com` and
+# `bedrock-runtime.<region>.amazonaws.com` endpoints. We block the
+# bedrock-prefixed subdomains; broader AWS connectivity is blocked at the
+# IP-CIDR layer in `egress-deny.rules`.
+bedrock.amazonaws.com
+bedrock-runtime.amazonaws.com
+
+# --- Azure OpenAI Service ---------------------------------------------------
+# Azure OpenAI deployments live on `<resource>.openai.azure.com`. Suffix
+# matching covers all tenant resources.
+cognitiveservices.azure.com
+
+# --- Hugging Face Inference / Endpoints (cloud variants) --------------------
+api-inference.huggingface.co
+huggingface.cloud
+endpoints.huggingface.cloud
+
+# --- Replicate --------------------------------------------------------------
+replicate.com
+api.replicate.com
+
+# --- Together / Anyscale / Fireworks / Groq cloud LLM hosts -----------------
+api.together.xyz
+together.ai
+api.together.ai
+anyscale.com
+api.anyscale.com
+fireworks.ai
+api.fireworks.ai
+groq.com
+api.groq.com
+
+# --- Perplexity, Inflection, AI21, Stability cloud --------------------------
+api.perplexity.ai
+api.inflection.ai
+api.ai21.com
+api.stability.ai
+
+# --- xAI (Grok) -------------------------------------------------------------
+x.ai
+api.x.ai
+
+# --- DeepInfra / OpenRouter / Forefront / Lepton ----------------------------
+api.deepinfra.com
+openrouter.ai
+api.openrouter.ai
+forefront.ai
+api.lepton.ai

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_gov_action.schema.json",
+  "title": "ai.gov.action",
+  "description": "AI_Governance action triggered when a Warm_AI_Pipeline component breaches a drift or accuracy threshold. Subject: ai.gov.action. Producer: AI_Governance. Consumers: Risk_Engine, UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["component", "action", "metric", "value", "threshold", "ts_ns"],
+  "properties": {
+    "component": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "action":    { "type": "string", "enum": ["reduce_influence", "shadow_mode", "freeze", "rollback"] },
+    "metric":    { "type": "string", "enum": ["drift", "accuracy", "latency", "error_rate"] },
+    "value":     { "type": "number" },
+    "threshold": { "type": "number" },
+    "ts_ns":     { "type": "integer", "minimum": 0 }
+  }
+}

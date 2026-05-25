@@ -1,0 +1,42 @@
+[package]
+name = "hedge-signals"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Signal_Engine: emits typed Signal_v1 from configured strategies. Hot_Path."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-signals"
+path = "src/bin/main.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+hedge-features = { path = "../hedge-features" }
+
+# Workspace pins (R3.6 / R30.8: NO pandas, NO NumPy, NO Python).
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+dashmap = { workspace = true }
+parking_lot = { workspace = true }
+quanta = { workspace = true }
+redis = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

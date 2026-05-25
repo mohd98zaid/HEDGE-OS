@@ -1,0 +1,26 @@
+# syntax=docker/dockerfile:1.7
+# Multi-stage build for the UI Gateway.
+# This crate is the only Rust service that is NOT part of the Hot_Path; it
+# bridges curated NATS subjects to the React UI over WebSockets.
+
+ARG RUST_VERSION=1.78
+ARG DEBIAN_VERSION=bookworm-slim
+
+FROM rust:${RUST_VERSION}-bookworm AS builder
+WORKDIR /workspace
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev ca-certificates flatbuffers-compiler \
+ && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN cargo build --release -p hedge-ui-gateway --bin hedge-ui-gateway
+
+FROM debian:${DEBIAN_VERSION} AS runtime
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates tini \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10011 --no-create-home hedge
+USER hedge
+EXPOSE 8080
+COPY --from=builder /workspace/target/release/hedge-ui-gateway /usr/local/bin/hedge-ui-gateway
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/hedge-ui-gateway"]

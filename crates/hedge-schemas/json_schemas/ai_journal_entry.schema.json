@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_journal_entry.schema.json",
+  "title": "ai.journal.entry",
+  "description": "AI_Trade_Journal post-trade narrative entry. Subject: ai.journal.entry. Producer: Warm_AI_Pipeline. Consumers: Memory_RAG_Layer, UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "trade_id", "symbol", "side", "quantity", "entry_paise", "exit_paise", "pnl_inr", "narrative", "ts_ns"],
+  "properties": {
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "trade_id":       { "type": "string", "minLength": 1, "maxLength": 64 },
+    "symbol":         { "type": "string", "minLength": 1, "maxLength": 32 },
+    "side":           { "type": "string", "enum": ["Buy", "Sell"] },
+    "quantity":       { "type": "integer", "minimum": 0 },
+    "entry_paise":    { "type": "integer" },
+    "exit_paise":     { "type": "integer" },
+    "pnl_inr":        { "type": "number" },
+    "narrative":      { "type": "string", "minLength": 1, "maxLength": 8192 },
+    "ts_ns":          { "type": "integer", "minimum": 0 }
+  }
+}

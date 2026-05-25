@@ -1,0 +1,27 @@
+[package]
+name = "hedge-broker-dhan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Dhan API BrokerAdapter for the Execution_Engine. Hot_Path."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-broker-api = { path = "../hedge-broker-api" }
+hedge-schemas = { path = "../hedge-schemas" }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

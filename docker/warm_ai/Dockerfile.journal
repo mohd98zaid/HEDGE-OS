@@ -1,0 +1,4 @@
+# syntax=docker/dockerfile:1.7
+ARG WARM_AI_BASE=hedge/warm-ai-base:dev
+FROM ${WARM_AI_BASE}
+CMD ["hedge-journal"]

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/obs_budget_breach.schema.json",
+  "title": "obs.budget.breach.<stage>",
+  "description": "Per-stage latency budget breach event. Subject: obs.budget.breach.<stage>.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "stage", "nanos", "budget_nanos", "ts_ns"],
+  "properties": {
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "stage":          { "type": "string", "enum": ["TickIngest", "FeatureExtraction", "AiScoringFetch", "RiskCheck", "ExecutionRouting", "BrokerSubmit"] },
+    "nanos":          { "type": "integer", "minimum": 0 },
+    "budget_nanos":   { "type": "integer", "minimum": 0 },
+    "ts_ns":          { "type": "integer", "minimum": 0 }
+  }
+}

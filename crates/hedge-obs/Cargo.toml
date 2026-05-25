@@ -1,0 +1,52 @@
+[package]
+name = "hedge-obs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Observability scaffolding (Prometheus, Loki, Jaeger via OpenTelemetry) for PROJECT HEDGE."
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# Default build links no HTTP client.  `hedge-obs` is consumed by Hot_Path
+# crates as a Drop-time emitter; introducing `reqwest` directly would put a
+# blocking-capable HTTP stack on the Hot_Path. The Loki shipper task that
+# *does* speak HTTP lives behind this opt-in feature so each binary can pick
+# it up at startup without compromising the core crate's purity (R30.7).
+default = []
+loki-shipper = ["dep:reqwest"]
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-bus = { path = "../hedge-bus" }
+
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+prometheus = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+parking_lot = { workspace = true }
+once_cell = { workspace = true }
+bytes = { workspace = true }
+quanta = { workspace = true }
+
+# Optional async HTTP client used only by `loki_shipper.rs` when the
+# `loki-shipper` feature is enabled. `default-features = false` strips the
+# blocking client variant entirely so the workspace's R30.7 prohibition is
+# preserved by construction (CI's grep gate confirms `reqwest::blocking::*`
+# never appears in source).
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"], optional = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

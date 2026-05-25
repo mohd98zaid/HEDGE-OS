@@ -1,0 +1,49 @@
+[package]
+name = "hedge-orderflow"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Orderflow_Engine: bid/ask imbalance, absorption, spoofing, liquidity heatmap. Hot_Path."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-orderflow"
+path = "src/bin/main.rs"
+
+[features]
+# Mirror of `hedge-core::alloc-tracking` — when enabled, the
+# `assert_no_alloc` harness uses a real `stats_alloc::Region` instead of
+# a no-op. Activate with `cargo test -p hedge-orderflow --features alloc-tracking`.
+default = []
+alloc-tracking = ["hedge-core/alloc-tracking"]
+
+[dependencies]
+# Internal dependencies (workspace crates).
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+
+# Workspace dependencies (R30: NO pandas, NO NumPy, NO Python, NO blocking
+# HTTP, NO cloud LLM SDK).
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+bytes = { workspace = true }
+parking_lot = { workspace = true }
+quanta = { workspace = true }
+dashmap = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+stats_alloc = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }

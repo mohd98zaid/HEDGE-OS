@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hedge-memory-rag"
+version = "0.1.0"
+description = "PROJECT HEDGE Memory_RAG_Layer: Qdrant vectors + Postgres/TimescaleDB time-series + Redis hot cache + retrieval pipeline."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "Proprietary" }
+authors = [{ name = "PROJECT HEDGE" }]
+keywords = ["rag", "qdrant", "timescaledb", "redis", "trading"]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Operating System :: POSIX :: Linux",
+  "Private :: Do Not Upload",
+]
+
+dependencies = [
+  "qdrant-client>=1.10,<2.0",
+  "asyncpg>=0.29,<0.31",
+  "redis>=5.0,<6.0",
+  "nats-py>=2.7,<3.0",
+  "pydantic>=2.7,<3.0",
+  "pydantic-settings>=2.3,<3.0",
+  "PyYAML>=6.0,<7.0",
+  "httpx>=0.27,<1.0",
+  "numpy>=1.26,<2.2",
+  "cbor2>=5.6,<7.0",
+  "structlog>=24.1,<25.0",
+  "opentelemetry-api>=1.25,<2.0",
+  "opentelemetry-sdk>=1.25,<2.0",
+  "opentelemetry-exporter-otlp>=1.25,<2.0",
+  "prometheus-client>=0.20,<1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2,<9.0",
+  "pytest-asyncio>=0.23,<1.0",
+  "hypothesis>=6.108,<7.0",
+  "ruff>=0.5,<1.0",
+  "mypy>=1.10,<2.0",
+]
+
+[project.scripts]
+hedge-rag        = "hedge_memory_rag.service:main"
+hedge-rag-loader = "hedge_memory_rag.loader:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hedge_memory_rag"]
+
+# Include the bundled Timescale SQL migrations so importlib.resources can
+# read them from the installed wheel (task 32.1, R19.3).
+[tool.hatch.build.targets.wheel.force-include]
+"src/hedge_memory_rag/timescale/migrations" = "hedge_memory_rag/timescale/migrations"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra"

@@ -1,0 +1,29 @@
+// Signal_v1: an alpha emission from the Signal_Engine (R4, R1.5).
+// Layer: Hot_Path. Producer: Signal_Engine. Wire: NATS `sig.emitted` plus
+// the `hedge.hot.signals` Redis Stream consumer group consumed by Risk.
+//
+// `risk_profile` is a fixed-layout struct so it can be embedded in
+// downstream `RiskApproval_v1` without an extra indirection.
+
+namespace hedge.v1;
+
+struct RiskProfile_v1 {
+  stop_loss_paise: long;
+  take_profit_paise: long;
+  max_size_qty: ulong;
+  time_horizon_seconds: uint;
+}
+
+table Signal_v1 {
+  correlation_id: [ubyte:16];
+  strategy: ubyte;            // StrategyId discriminant; see strategy_id module.
+  symbol: uint;
+  side: ubyte;                // 0 = Buy, 1 = Sell
+  base_probability: float;    // [0.0, 1.0]
+  confidence: float;          // [0.0, 1.0]
+  risk_profile: RiskProfile_v1;
+  ts_ns: ulong;
+}
+
+root_type Signal_v1;
+file_identifier "HEDG";

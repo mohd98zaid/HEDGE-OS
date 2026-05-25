@@ -1,0 +1,25 @@
+[package]
+name = "hedge-broker-simulated"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Simulated BrokerAdapter that derives synthetic fills from a recorded orderbook. Used in replay (R22.4) and tests."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-broker-api = { path = "../hedge-broker-api" }
+hedge-schemas = { path = "../hedge-schemas" }
+async-trait = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+parking_lot = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

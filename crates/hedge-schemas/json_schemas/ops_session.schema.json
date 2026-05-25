@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ops_session.schema.json",
+  "title": "ops.session.<phase>",
+  "description": "Session manager session start/end announcement. Subjects: ops.session.start, ops.session.end. Producer: Session manager. Consumers: All.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["session_id", "phase", "ts_ns"],
+  "properties": {
+    "session_id": { "type": "integer", "minimum": 0 },
+    "phase":      { "type": "string", "enum": ["start", "end"] },
+    "ts_ns":      { "type": "integer", "minimum": 0 }
+  }
+}

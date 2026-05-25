@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/obs_latency.schema.json",
+  "title": "obs.latency.<stage>",
+  "description": "JSON mirror of LatencyRecord_v1 for non-Hot_Path consumers (Warm_AI_Pipeline, UI). Subject: obs.latency.<stage>.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "stage", "nanos", "budget_nanos", "breach"],
+  "properties": {
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "stage":          { "type": "string", "enum": ["TickIngest", "FeatureExtraction", "AiScoringFetch", "RiskCheck", "ExecutionRouting", "BrokerSubmit"] },
+    "nanos":          { "type": "integer", "minimum": 0 },
+    "budget_nanos":   { "type": "integer", "minimum": 0 },
+    "breach":         { "type": "boolean" }
+  }
+}

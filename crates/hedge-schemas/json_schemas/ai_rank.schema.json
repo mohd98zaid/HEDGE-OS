@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_rank.schema.json",
+  "title": "ai.rank.<correlation_id>",
+  "description": "AI_Trade_Ranking_Engine emission carrying the trade_confidence_score and component factors. Subject: ai.rank.<cid>. Producer: Warm_AI_Pipeline. Consumers: Risk_Engine, Signal_Engine, UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "signal_id", "trade_confidence_score", "factors", "shadow", "ts_ns"],
+  "properties": {
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "signal_id":      { "type": "string", "minLength": 1, "maxLength": 64 },
+    "trade_confidence_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "factors": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["orderflow", "technical_strength", "news_sentiment", "market_regime", "trader_discipline"],
+      "properties": {
+        "orderflow":          { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "technical_strength": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "news_sentiment":     { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "market_regime":      { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+        "trader_discipline":  { "type": "number", "minimum": 0.0, "maximum": 1.0 }
+      }
+    },
+    "shadow": { "type": "boolean" },
+    "ts_ns":  { "type": "integer", "minimum": 0 }
+  }
+}

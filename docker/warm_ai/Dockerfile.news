@@ -1,0 +1,7 @@
+# syntax=docker/dockerfile:1.7
+# News_Intelligence_Engine. Inherits from the shared warm-ai base image; the
+# CMD launches the console script defined in python/hedge_warm_ai/pyproject.toml.
+
+ARG WARM_AI_BASE=hedge/warm-ai-base:dev
+FROM ${WARM_AI_BASE}
+CMD ["hedge-news"]

@@ -1,0 +1,23 @@
+[package]
+name = "hedge-broker-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "BrokerAdapter trait, BrokerError, BrokerMetric, ReadyState — shared by every Hot_Path broker crate and by hedge-exec."
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-schemas = { path = "../hedge-schemas" }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_psych_intervention.schema.json",
+  "title": "ai.psych.intervention",
+  "description": "Trader_Psychology_Engine intervention recommendation. Subject: ai.psych.intervention. Producer: Warm_AI_Pipeline. Consumers: Risk_Engine, UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "trigger_score", "ts_ns"],
+  "properties": {
+    "action": { "type": "string", "enum": ["cooldown", "size_reduction", "kill_switch", "warning"] },
+    "trigger_score": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "ts_ns": { "type": "integer", "minimum": 0 }
+  }
+}

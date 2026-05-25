@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/trader_intent_killswitch.schema.json",
+  "title": "trader.intent.killswitch",
+  "description": "Trader-issued kill-switch toggle from the UI. Subject: trader.intent.killswitch. Producer: ui-gateway. Consumer: Risk_Engine.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["correlation_id", "engaged", "actor", "ts_ns"],
+  "properties": {
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 64 },
+    "engaged":        { "type": "boolean" },
+    "reason":         { "type": "string", "maxLength": 512 },
+    "actor":          { "type": "string", "minLength": 1, "maxLength": 64 },
+    "ts_ns":          { "type": "integer", "minimum": 0 }
+  }
+}

@@ -1,0 +1,12 @@
+# Ensure shell scripts retain LF line endings when checked out on POSIX
+# hosts, even when the working tree was last edited on Windows. Without
+# this, `provision-creds.sh` checked out on Linux can fail with
+# `bad interpreter: /usr/bin/env^M`.
+#
+# The executable bit cannot be set via .gitattributes — operators must run
+#   git update-index --chmod=+x docker/nats/provision-creds.sh
+# once before committing on a Windows clone, or use
+#   git add --chmod=+x docker/nats/provision-creds.sh
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.creds     text eol=lf

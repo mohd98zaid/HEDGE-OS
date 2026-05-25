@@ -1,0 +1,23 @@
+# syntax=docker/dockerfile:1.7
+# Multi-stage build for the Orderflow_Engine (Hot_Path).
+
+ARG RUST_VERSION=1.78
+ARG DEBIAN_VERSION=bookworm-slim
+
+FROM rust:${RUST_VERSION}-bookworm AS builder
+WORKDIR /workspace
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev ca-certificates flatbuffers-compiler \
+ && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN cargo build --release -p hedge-orderflow --bin hedge-orderflow
+
+FROM debian:${DEBIAN_VERSION} AS runtime
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates tini \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10002 --no-create-home hedge
+USER hedge
+COPY --from=builder /workspace/target/release/hedge-orderflow /usr/local/bin/hedge-orderflow
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/hedge-orderflow"]

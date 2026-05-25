@@ -1,0 +1,39 @@
+[package]
+name = "hedge-market-data"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Market_Data_Engine: ingests NSE/BSE WebSocket feeds and publishes normalized ticks. Hot_Path."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-market-data"
+path = "src/bin/main.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures = { workspace = true }
+bytes = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+dashmap = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "test-util"] }

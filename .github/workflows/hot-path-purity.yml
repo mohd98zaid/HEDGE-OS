@@ -1,0 +1,78 @@
+name: Hot_Path Purity
+
+# Enforces R30 (Non-Goals / Architectural Prohibitions) on every Hot_Path crate.
+# Three independent jobs run in parallel so partial failures stay visible.
+#
+# References:
+#   - .kiro/specs/project-hedge/design.md  (Non-Goals R30; Hot_Path Architecture)
+#   - .kiro/specs/project-hedge/requirements.md  (3.6, 9.4-9.6, 30.1-30.8)
+#   - docs/hot-path-purity.md  (operator guide and escape-hatch usage)
+
+on:
+  pull_request:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  forbidden-deps:
+    name: Forbidden transitive dependencies
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install jq
+        run: |
+          set -euo pipefail
+          if ! command -v jq >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y jq
+          fi
+
+      - name: Run forbidden-dependency check
+        run: |
+          set -euo pipefail
+          chmod +x scripts/check-forbidden-deps.sh
+          scripts/check-forbidden-deps.sh
+
+  forbidden-grep:
+    name: Forbidden source-level imports
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run forbidden-source check
+        run: |
+          set -euo pipefail
+          chmod +x scripts/check-forbidden-source.sh
+          scripts/check-forbidden-source.sh
+
+  polling-grep:
+    name: No polling loops in Hot_Path steady state
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run no-polling check
+        run: |
+          set -euo pipefail
+          chmod +x scripts/check-no-polling.sh
+          scripts/check-no-polling.sh

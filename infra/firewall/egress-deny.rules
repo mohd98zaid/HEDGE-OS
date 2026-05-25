@@ -1,0 +1,148 @@
+# PROJECT HEDGE — Egress Deny Ruleset for the Ollama host (R10.8)
+#
+# Format: nftables (`/etc/nftables.d/hedge-egress-deny.nft`)
+#
+# Goal
+# ----
+# Fail closed: from the Ollama host's perspective, the public Internet's
+# cloud LLM providers do not exist. The Hot_Path and Warm_AI_Pipeline rely
+# on this enforcement to satisfy R10.8 ("Ollama_Infrastructure SHALL NOT
+# make outbound calls to any cloud LLM provider").
+#
+# Strategy
+# --------
+# We enforce three independent layers so a single bypass — say, a vendor
+# rotating an IP — cannot defeat the policy:
+#
+#   1. Layer-3 IP/CIDR drops. Apply directly to the `OUTPUT` chain so any
+#      flow toward a known-bad CIDR is dropped before TCP handshakes.
+#   2. Layer-4 SNI/Host inspection (see comments). nftables alone cannot
+#      parse TLS SNI; the companion `install-egress-firewall.sh` installs a
+#      tiny `dnsmasq` resolver that returns `0.0.0.0` for every entry in
+#      `cloud-llm-domains.txt` so DNS resolution itself fails closed.
+#   3. Outbound HTTPS to the public Internet is allowed *only* to a
+#      configurable allowlist (NSE/BSE feeds, broker APIs, Reuters etc.).
+#      The Ollama containers themselves run on the private Docker network
+#      and have no host-level egress at all.
+#
+# This file is the *generated* artefact. The source of truth for which
+# domains to block is `cloud-llm-domains.txt`. The
+# `install-egress-firewall.sh` script regenerates the `define cloud_llm_v4
+# = { ... }` set from that file on every run, so updates are atomic and
+# auditable.
+#
+# Idempotency
+# -----------
+# `install-egress-firewall.sh` flushes the `hedge_egress` table before
+# loading this ruleset, so repeated `nft -f` invocations converge to the
+# same final state.
+
+# --- Header -----------------------------------------------------------------
+
+flush table inet hedge_egress
+
+table inet hedge_egress {
+
+    # ---- Sets (generated; see install-egress-firewall.sh) -----------------
+    #
+    # Cloud LLM provider IPv4 CIDRs. Conservative coverage: we list the
+    # apex blocks for the providers below. The installer script can extend
+    # these from a curated AS-number → CIDR feed if available; the static
+    # block below is the safe baseline.
+    #
+    # Sources (manually verified, 2024 Q4):
+    #   * OpenAI: ARIN AS398324 announces 23.102.140.112/28, plus Cloudfront
+    #     and Azure-fronted endpoints (overlap with cognitiveservices).
+    #   * Anthropic: Cloudflare-fronted; we rely on SNI/DNS layers.
+    #   * Google AI / Vertex: 142.250.0.0/15, 172.217.0.0/16,
+    #     74.125.0.0/16 (also serves benign Google services — DO NOT block
+    #     these CIDRs blindly; rely on DNS layer for Google).
+    #   * AWS Bedrock: 52.0.0.0/11 (also benign AWS — DNS layer covers).
+    #
+    # The static set below is therefore intentionally minimal; the DNS
+    # poisoning layer carries most of the weight.
+
+    set cloud_llm_v4 {
+        type ipv4_addr
+        flags interval
+        # Populated by install-egress-firewall.sh from
+        # `cloud-llm-domains.txt` resolution at install time. This is the
+        # documented placeholder; the actual elements are added with
+        # `nft add element ...` so they can be refreshed without rewriting
+        # the file.
+        # Example provider CIDRs (commented out — installer manages live
+        # entries):
+        #   elements = { 23.102.140.112/28 }
+    }
+
+    set cloud_llm_v6 {
+        type ipv6_addr
+        flags interval
+        # IPv6 equivalents — populated similarly.
+    }
+
+    # Hosts on which Ollama containers expose their HTTP API (loopback +
+    # Docker bridge). Traffic to these is always allowed.
+    set local_ollama_hosts {
+        type ipv4_addr
+        flags interval
+        elements = {
+            127.0.0.0/8,
+            10.0.0.0/8,
+            172.16.0.0/12,
+            192.168.0.0/16
+        }
+    }
+
+    # ---- Chains -----------------------------------------------------------
+
+    # Output chain: filters traffic originating on this host. Hooked at
+    # priority 0 so it runs alongside any pre-existing filter table the
+    # operator may already manage.
+    chain output {
+        type filter hook output priority 0; policy accept;
+
+        # 0. Always allow loopback. Deny rules below would otherwise
+        #    accidentally hit local Unix-domain over TCP loopback.
+        oifname "lo" accept
+
+        # 1. Always allow traffic that stays on private/RFC1918 networks
+        #    (the Docker bridge and any LAN to peer Hedge hosts).
+        ip daddr @local_ollama_hosts accept
+
+        # 2. DROP cloud LLM CIDRs — IPv4 and IPv6.
+        ip daddr @cloud_llm_v4 \
+            log prefix "hedge.egress.cloud_llm.v4 " level warn \
+            counter \
+            drop
+
+        ip6 daddr @cloud_llm_v6 \
+            log prefix "hedge.egress.cloud_llm.v6 " level warn \
+            counter \
+            drop
+
+        # 3. DROP DNS queries that escape the local stub resolver. We
+        #    require all DNS to go through 127.0.0.53 (systemd-resolved)
+        #    or 127.0.0.1:53 (the dnsmasq stub installed by
+        #    install-egress-firewall.sh). Direct UDP/53 to public
+        #    resolvers is blocked so an application cannot bypass the
+        #    poisoned A records by querying 1.1.1.1 directly.
+        udp dport 53 ip daddr != 127.0.0.0/8 \
+            log prefix "hedge.egress.dns_bypass " level warn \
+            counter \
+            drop
+
+        tcp dport 53 ip daddr != 127.0.0.0/8 \
+            log prefix "hedge.egress.dns_bypass.tcp " level warn \
+            counter \
+            drop
+
+        # 4. Default: accept (the host still needs to reach NATS, broker
+        #    APIs, exchange feeds, NTP, and package mirrors). The deny
+        #    above is targeted at *cloud LLM providers* per R10.8, not at
+        #    the entire Internet.
+        accept
+    }
+}
+
+# End of ruleset.

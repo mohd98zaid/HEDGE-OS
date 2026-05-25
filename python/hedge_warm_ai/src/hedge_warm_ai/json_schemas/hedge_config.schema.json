@@ -1,0 +1,250 @@
+{
+  "$id": "hedge_config.schema.json",
+  "title": "HedgeConfig",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "capital",
+    "risk",
+    "session",
+    "war_mode",
+    "ui",
+    "ai",
+    "trader_psychology",
+    "brokers",
+    "ollama",
+    "observability"
+  ],
+  "$defs": {
+    "TimeIst": {
+      "type": "string",
+      "pattern": "^[0-2][0-9]:[0-5][0-9]:[0-5][0-9]$"
+    },
+    "BrokerId": {
+      "type": "string",
+      "enum": ["zerodha", "dhan", "shoonya", "angel_one", "simulated"]
+    },
+    "OllamaRole": {
+      "type": "string",
+      "enum": ["primary", "fast", "deep", "lightweight"]
+    },
+    "PostTargetPolicy": {
+      "type": "string",
+      "enum": ["reduce_size_to_zero", "stop_for_session", "halve_size", "continue"]
+    },
+    "UnitInterval": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0
+    }
+  },
+  "properties": {
+    "capital": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base_inr",
+        "daily_profit_target_min_inr",
+        "daily_profit_target_max_inr",
+        "post_target_policy"
+      ],
+      "properties": {
+        "base_inr": { "type": "integer", "minimum": 1 },
+        "daily_profit_target_min_inr": { "type": "integer", "minimum": 0 },
+        "daily_profit_target_max_inr": { "type": "integer", "minimum": 0 },
+        "post_target_policy": { "$ref": "#/$defs/PostTargetPolicy" }
+      }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "max_daily_loss_inr",
+        "max_position_per_symbol",
+        "max_position_portfolio",
+        "max_leverage_per_symbol",
+        "max_leverage_account",
+        "max_drawdown_inr",
+        "max_trades_per_minute",
+        "max_trades_per_hour",
+        "max_trades_per_session",
+        "max_exposure_per_symbol_inr",
+        "max_exposure_per_sector_inr",
+        "slippage_threshold_bps",
+        "slippage_cooldown_ms",
+        "volatility_block_threshold",
+        "broker_latency_block_ms",
+        "base_risk_per_trade_inr"
+      ],
+      "properties": {
+        "max_daily_loss_inr": { "type": "integer", "minimum": 0 },
+        "max_position_per_symbol": { "type": "integer", "minimum": 0 },
+        "max_position_portfolio": { "type": "integer", "minimum": 0 },
+        "max_leverage_per_symbol": { "type": "number", "minimum": 0.0 },
+        "max_leverage_account": { "type": "number", "minimum": 0.0 },
+        "max_drawdown_inr": { "type": "integer", "minimum": 0 },
+        "max_trades_per_minute": { "type": "integer", "minimum": 0 },
+        "max_trades_per_hour": { "type": "integer", "minimum": 0 },
+        "max_trades_per_session": { "type": "integer", "minimum": 0 },
+        "max_exposure_per_symbol_inr": { "type": "integer", "minimum": 0 },
+        "max_exposure_per_sector_inr": { "type": "integer", "minimum": 0 },
+        "slippage_threshold_bps": { "type": "integer", "minimum": 0 },
+        "slippage_cooldown_ms": { "type": "integer", "minimum": 0 },
+        "volatility_block_threshold": { "type": "number", "minimum": 0.0 },
+        "broker_latency_block_ms": { "type": "integer", "minimum": 0 },
+        "base_risk_per_trade_inr": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ist", "end_ist"],
+      "properties": {
+        "start_ist": { "$ref": "#/$defs/TimeIst" },
+        "end_ist": { "$ref": "#/$defs/TimeIst" }
+      }
+    },
+    "war_mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_ist", "end_ist", "min_confidence", "scan_multiplier"],
+      "properties": {
+        "start_ist": { "$ref": "#/$defs/TimeIst" },
+        "end_ist": { "$ref": "#/$defs/TimeIst" },
+        "min_confidence": { "$ref": "#/$defs/UnitInterval" },
+        "scan_multiplier": { "type": "number", "minimum": 0.0 }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["high_vol_threshold"],
+      "properties": {
+        "high_vol_threshold": { "type": "number", "minimum": 0.0 }
+      }
+    },
+    "ai": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shadow_components",
+        "governance",
+        "rank_p95_budget_ms",
+        "ranking_factors"
+      ],
+      "properties": {
+        "shadow_components": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "governance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["drift_warn", "drift_critical"],
+          "properties": {
+            "drift_warn": { "$ref": "#/$defs/UnitInterval" },
+            "drift_critical": { "$ref": "#/$defs/UnitInterval" }
+          }
+        },
+        "rank_p95_budget_ms": { "type": "integer", "minimum": 0 },
+        "ranking_factors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "orderflow",
+            "technical_strength",
+            "news_sentiment",
+            "market_regime",
+            "trader_discipline"
+          ],
+          "properties": {
+            "orderflow": { "$ref": "#/$defs/UnitInterval" },
+            "technical_strength": { "$ref": "#/$defs/UnitInterval" },
+            "news_sentiment": { "$ref": "#/$defs/UnitInterval" },
+            "market_regime": { "$ref": "#/$defs/UnitInterval" },
+            "trader_discipline": { "$ref": "#/$defs/UnitInterval" }
+          }
+        }
+      }
+    },
+    "trader_psychology": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["thresholds"],
+      "properties": {
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["warning", "cooldown", "suppression", "critical"],
+          "properties": {
+            "warning": { "$ref": "#/$defs/UnitInterval" },
+            "cooldown": { "$ref": "#/$defs/UnitInterval" },
+            "suppression": { "$ref": "#/$defs/UnitInterval" },
+            "critical": { "$ref": "#/$defs/UnitInterval" }
+          }
+        }
+      }
+    },
+    "brokers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primary", "backup", "failover_error_rate", "failover_latency_ms"],
+      "properties": {
+        "primary": { "$ref": "#/$defs/BrokerId" },
+        "backup": { "$ref": "#/$defs/BrokerId" },
+        "failover_error_rate": { "$ref": "#/$defs/UnitInterval" },
+        "failover_latency_ms": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "ollama": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["models"],
+      "properties": {
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "role", "quant"],
+            "properties": {
+              "name": { "type": "string", "minLength": 1 },
+              "role": { "$ref": "#/$defs/OllamaRole" },
+              "quant": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["retention", "degraded_mode"],
+      "properties": {
+        "retention": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["metrics_days", "logs_days", "traces_days"],
+          "properties": {
+            "metrics_days": { "type": "integer", "minimum": 0 },
+            "logs_days": { "type": "integer", "minimum": 0 },
+            "traces_days": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "degraded_mode": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "drop_low_severity_logs_at_loki_unavailable",
+            "sample_traces_at_jaeger_overload"
+          ],
+          "properties": {
+            "drop_low_severity_logs_at_loki_unavailable": { "type": "boolean" },
+            "sample_traces_at_jaeger_overload": { "$ref": "#/$defs/UnitInterval" }
+          }
+        }
+      }
+    }
+  }
+}

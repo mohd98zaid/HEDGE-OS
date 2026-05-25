@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1.7
+# Multi-stage build for the Market_Data_Engine (Hot_Path).
+# Builds the `hedge-market-data` binary from the Cargo workspace and ships
+# only the binary on a slim runtime image.
+
+ARG RUST_VERSION=1.78
+ARG DEBIAN_VERSION=bookworm-slim
+
+FROM rust:${RUST_VERSION}-bookworm AS builder
+WORKDIR /workspace
+
+# Install only what flatc / openssl need at build time.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        pkg-config libssl-dev ca-certificates flatbuffers-compiler \
+ && rm -rf /var/lib/apt/lists/*
+
+# Copy the entire workspace to leverage Cargo's incremental cache. The .dockerignore
+# at the repo root keeps node_modules, target/, and replay/ out of the build context.
+COPY . .
+
+RUN cargo build --release -p hedge-market-data --bin hedge-market-data
+
+FROM debian:${DEBIAN_VERSION} AS runtime
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates tini \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10001 --no-create-home hedge
+USER hedge
+COPY --from=builder /workspace/target/release/hedge-market-data /usr/local/bin/hedge-market-data
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/hedge-market-data"]

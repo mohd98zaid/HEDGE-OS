@@ -1,0 +1,107 @@
+[workspace]
+resolver = "2"
+members = [
+    # Foundation
+    "crates/hedge-core",
+    "crates/hedge-bus",
+    "crates/hedge-schemas",
+    "crates/hedge-obs",
+    "crates/hedge-config",
+
+    # Hot_Path engines
+    "crates/hedge-market-data",
+    "crates/hedge-orderflow",
+    "crates/hedge-features",
+    "crates/hedge-signals",
+    "crates/hedge-risk",
+    "crates/hedge-exec",
+    "crates/hedge-position",
+
+    # Broker adapters
+    "crates/hedge-broker-api",
+    "crates/hedge-broker-zerodha",
+    "crates/hedge-broker-dhan",
+    "crates/hedge-broker-shoonya",
+    "crates/hedge-broker-angelone",
+    "crates/hedge-broker-simulated",
+
+    # Cross-cutting infrastructure
+    "crates/hedge-warmcache",
+    "crates/hedge-replay",
+    "crates/hedge-supervisor",
+    "crates/hedge-session",
+
+    # UI bridge (only non-Hot_Path Rust crate)
+    "crates/hedge-ui-gateway",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.78"
+license = "Proprietary"
+publish = false
+
+# Pinned top-level dependency versions. Child crates inherit these via
+# `dep = { workspace = true }` so the entire workspace stays on a single
+# version of every dependency.
+[workspace.dependencies]
+tokio = { version = "1.39", features = ["full"] }
+async-nats = "0.35"
+redis = { version = "0.26", features = ["tokio-comp", "aio", "connection-manager"] }
+crossbeam = "0.8"
+arrayvec = "0.7"
+smallvec = "1.13"
+dashmap = "6.0"
+quanta = "0.12"
+stats_alloc = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+serde_yaml = "0.9"
+bytes = "1.6"
+flatbuffers = "24.3"
+rkyv = { version = "0.7", features = ["validation"] }
+ulid = "1.1"
+hmac = "0.12"
+sha2 = "0.10"
+thiserror = "1.0"
+anyhow = "1.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+opentelemetry = "0.24"
+opentelemetry-otlp = "0.17"
+opentelemetry_sdk = { version = "0.24", features = ["rt-tokio"] }
+prometheus = "0.13"
+proptest = "1.5"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.9"
+tokio-tungstenite = "0.23"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+async-trait = "0.1"
+url = "2.5"
+base64 = "0.22"
+hex = "0.4"
+futures = "0.3"
+once_cell = "1.19"
+parking_lot = "0.12"
+jsonschema = { version = "0.18", default-features = false }
+tempfile = "3.10"
+
+[profile.release]
+# Hot_Path crates require panic=abort (no unwinding overhead) and thin LTO
+# so cross-crate inlining of FlatBuffers and tokio futures is realised.
+panic = "abort"
+lto = "thin"
+codegen-units = 1
+opt-level = 3
+debug = 1
+strip = "none"
+
+[profile.release-debug]
+inherits = "release"
+debug = 2
+strip = "none"
+
+[profile.bench]
+inherits = "release"
+debug = 1

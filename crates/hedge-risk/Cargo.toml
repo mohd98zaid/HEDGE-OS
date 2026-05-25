@@ -1,0 +1,42 @@
+[package]
+name = "hedge-risk"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Risk_Engine: final-authority limit checker, ApprovalToken issuer, kill switch. Hot_Path."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-risk"
+path = "src/main.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+# `hedge-warmcache` (task 44.1) is intentionally NOT depended on yet. The
+# Risk_Engine defines the `WarmCacheView` trait inline (see src/warmcache.rs)
+# and the future `hedge-warmcache` crate will implement it.
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+hmac = { workspace = true }
+sha2 = { workspace = true }
+parking_lot = { workspace = true }
+quanta = { workspace = true }
+bytes = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

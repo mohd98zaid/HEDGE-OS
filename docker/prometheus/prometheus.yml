@@ -1,0 +1,42 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  - job_name: nats
+    static_configs:
+      - targets: ["nats:8222"]
+
+  # Hot_Path services expose Prometheus on :9100 once hedge-obs (task 5.1) lands.
+  - job_name: hedge-hot-path
+    static_configs:
+      - targets:
+          - "hedge-market-data:9100"
+          - "hedge-orderflow:9100"
+          - "hedge-features:9100"
+          - "hedge-signals:9100"
+          - "hedge-risk:9100"
+          - "hedge-exec:9100"
+          - "hedge-position:9100"
+          - "hedge-supervisor:9100"
+          - "hedge-session:9100"
+          - "hedge-replay:9100"
+          - "hedge-ui-gateway:9100"
+
+  - job_name: hedge-warm-ai
+    static_configs:
+      - targets:
+          - "hedge-news:9200"
+          - "hedge-regime:9200"
+          - "hedge-priority:9200"
+          - "hedge-prevday:9200"
+          - "hedge-psych:9200"
+          - "hedge-rank:9200"
+          - "hedge-journal:9200"
+          - "hedge-governance:9200"
+          - "hedge-shadow:9200"
+          - "hedge-rag:9200"

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_regime_changed.schema.json",
+  "title": "ai.regime.changed",
+  "description": "Market_Regime_Engine edge-triggered regime change. Subject: ai.regime.changed. Producer: Warm_AI_Pipeline. Consumers: Risk_Engine, Signal_Engine (gating), UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["from", "to", "ts_ns"],
+  "properties": {
+    "from": { "type": "string", "enum": ["Trending", "Sideways", "Panic", "HighVolatility", "NewsDriven", "LiquidityCrisis", "LowParticipation"] },
+    "to":   { "type": "string", "enum": ["Trending", "Sideways", "Panic", "HighVolatility", "NewsDriven", "LiquidityCrisis", "LowParticipation"] },
+    "ts_ns": { "type": "integer", "minimum": 0 }
+  }
+}

@@ -1,0 +1,23 @@
+// RiskApproval_v1: the Risk_Engine's signed approval of an OrderIntent.
+// (R5.13, R5.14, R21.2). Layer: Hot_Path. Wire: NATS `risk.decision.approved`
+// and the `hedge.hot.approvals` Redis Stream consumer group consumed by exec.
+//
+// `approval_token` is an HMAC-SHA256 (32 bytes) over the canonical bytes of
+// the embedded `intent`. Single-use; the Execution_Engine verifies and
+// consumes it before submitting to a Broker_Adapter.
+
+include "order.fbs";
+
+namespace hedge.v1;
+
+table RiskApproval_v1 {
+  correlation_id: [ubyte:16];
+  approval_token: [ubyte:32];
+  intent: OrderIntent_v1;
+  sized_quantity: ulong;
+  rationale_code: ubyte;
+  ts_ns: ulong;
+}
+
+root_type RiskApproval_v1;
+file_identifier "HEDG";

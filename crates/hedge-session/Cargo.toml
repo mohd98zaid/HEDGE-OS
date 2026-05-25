@@ -1,0 +1,28 @@
+[package]
+name = "hedge-session"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Session manager: emits ops.session.start/end and ops.warmode.start/end on the IST clock."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-session"
+path = "src/main.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+tokio = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

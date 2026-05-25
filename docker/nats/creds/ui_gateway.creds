@@ -1,0 +1,29 @@
+# =============================================================================
+# PROJECT HEDGE — NATS user credentials TEMPLATE for account: ui_gateway
+#
+# DO NOT COMMIT REAL JWTs OR NKEY SEEDS. This file ships as a placeholder so
+# the docker-compose volume mounts resolve. To mint real credentials run:
+#
+#   docker/nats/provision-creds.sh
+#
+# Account permissions enforced by `docker/nats/nats-server.conf`:
+#   publish    : trader.>  obs.>
+#   subscribe  : md.>  of.>  feat.>  sig.>  risk.>  exec.>  pos.>
+#                ai.>  mem.>  ops.>  obs.>
+#
+# `ui_gateway` is the SOLE publisher on `trader.intent.*` (R21.1). Every
+# manual trader action (kill-switch, strategy toggle, priority change,
+# manual order intent) flows through this credential.
+# =============================================================================
+
+-----BEGIN NATS USER JWT-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_JWT
+------END NATS USER JWT------
+
+************************* IMPORTANT *************************
+NKEY Seed printed below can be used to sign and prove identity.
+NKEYs are sensitive and should be treated as secrets.
+-----BEGIN USER NKEY SEED-----
+PLACEHOLDER_REPLACE_WITH_NSC_GENERATED_SEED
+------END USER NKEY SEED------
+*************************************************************

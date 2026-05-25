@@ -1,0 +1,76 @@
+# /etc/hedge/config.yaml
+# Mirrors design § Data Models — Configuration Surface and Defaults exactly.
+capital:
+  base_inr: 20000               # R32.1 — default ₹20,000
+  daily_profit_target_min_inr: 300   # R32.2
+  daily_profit_target_max_inr: 1000  # R32.2
+  post_target_policy: reduce_size_to_zero   # R32.3 (alternatives: stop_for_session, halve_size, continue)
+
+risk:
+  max_daily_loss_inr: 600
+  max_position_per_symbol: 200
+  max_position_portfolio: 500
+  max_leverage_per_symbol: 5.0
+  max_leverage_account: 5.0
+  max_drawdown_inr: 1000
+  max_trades_per_minute: 4
+  max_trades_per_hour: 30
+  max_trades_per_session: 60
+  max_exposure_per_symbol_inr: 20000
+  max_exposure_per_sector_inr: 30000
+  slippage_threshold_bps: 25
+  slippage_cooldown_ms: 60000
+  volatility_block_threshold: 0.06
+  broker_latency_block_ms: 250
+  base_risk_per_trade_inr: 100
+
+session:
+  start_ist: "09:15:00"
+  end_ist:   "15:30:00"
+
+war_mode:
+  start_ist: "09:15:00"
+  end_ist:   "09:45:00"
+  min_confidence: 0.6
+  scan_multiplier: 2.0
+
+ui:
+  high_vol_threshold: 0.05
+
+ai:
+  shadow_components: []
+  governance:
+    drift_warn:   0.20
+    drift_critical: 0.35
+  rank_p95_budget_ms: 5
+  ranking_factors:    # surface only — formula constants are fixed in R17.1
+    orderflow: 0.30
+    technical_strength: 0.25
+    news_sentiment: 0.20
+    market_regime: 0.15
+    trader_discipline: 0.10
+
+trader_psychology:
+  thresholds: { warning: 0.6, cooldown: 0.5, suppression: 0.4, critical: 0.3 }
+
+brokers:
+  primary: zerodha
+  backup:  dhan
+  failover_error_rate: 0.20
+  failover_latency_ms: 250
+
+ollama:
+  models:
+    - { name: "qwen2.5:14b",  role: primary,     quant: q4_k_m }
+    - { name: "mistral:7b",   role: fast,        quant: q4_k_m }
+    - { name: "deepseek-r1",  role: deep,        quant: q4_k_m }
+    - { name: "phi",          role: lightweight, quant: q4_k_m }
+
+observability:
+  retention:
+    metrics_days: 30
+    logs_days: 14
+    traces_days: 7
+  degraded_mode:
+    drop_low_severity_logs_at_loki_unavailable: true
+    sample_traces_at_jaeger_overload: 0.1

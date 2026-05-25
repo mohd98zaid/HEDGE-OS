@@ -1,0 +1,26 @@
+[package]
+name = "hedge-supervisor"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Self_Healing_Supervisor: detects and recovers from WS, Redis, broker, and host failures."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "hedge-supervisor"
+path = "src/main.rs"
+
+[dependencies]
+hedge-core = { path = "../hedge-core" }
+hedge-bus = { path = "../hedge-bus" }
+hedge-schemas = { path = "../hedge-schemas" }
+hedge-obs = { path = "../hedge-obs" }
+hedge-config = { path = "../hedge-config" }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hedge.local/schemas/ai_ollama_degraded.schema.json",
+  "title": "ai.ollama.degraded",
+  "description": "Ollama_Infrastructure degraded-state event. Subject: ai.ollama.degraded. Producer: Warm_AI_Pipeline. Consumers: AI_Governance, Risk_Engine, UI.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["model", "fallback_model", "reason", "ts_ns"],
+  "properties": {
+    "model":          { "type": "string", "minLength": 1, "maxLength": 128 },
+    "fallback_model": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "reason":         { "type": "string", "enum": ["timeout", "unresponsive", "oom", "crashed", "version_mismatch"] },
+    "ts_ns":          { "type": "integer", "minimum": 0 }
+  }
+}
