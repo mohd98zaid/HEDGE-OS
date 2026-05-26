@@ -25,11 +25,14 @@ use crate::config::WarmCacheConfig;
 use crate::lru::ConfidenceLru;
 use crate::snapshot::{NewsImpactSnapshot, Snapshot};
 
-// `WarmCacheView` lives in `hedge-risk`. We add a `dep` on `hedge-risk`
-// (one-way, no cycle: `hedge-risk` does NOT depend on `hedge-warmcache`)
-// and impl the trait at the bottom of this file so the cache can be
-// passed directly into `RiskEngine::new(..., warm_cache, ...)` without an
-// adapter.
+// `WarmCacheView` lives in `hedge-risk`. To avoid a `hedge-warmcache →
+// hedge-risk` dependency edge that would force every consumer of this
+// crate to drag in the entire Risk_Engine, we expose only the inherent
+// methods here. The consumer (the Risk_Engine binary) writes a tiny
+// 5-line newtype that wraps `Arc<WarmCache>` and impls
+// `hedge_risk::WarmCacheView` on it. See
+// `crates/hedge-risk/src/warmcache.rs` for the trait definition and
+// `MockWarmCacheView` for the test-side reference adapter.
 
 /// Last-known-value cache for Warm_AI_Pipeline scores.
 ///
@@ -82,13 +85,14 @@ impl WarmCache {
         &self.config
     }
 
-    /// Snapshot the current inner state. This is the single primitive
-    /// every other read accessor builds on. Hot_Path code can store the
-    /// returned `Arc` for a tick's worth of evaluations to avoid
-    /// repeated atomic loads.
+    /// Snapshot the current inner state as an owned `Arc<Snapshot>`.
+    /// This is the single primitive every other read accessor builds
+    /// on. Hot_Path code can hold onto the returned `Arc` for a tick's
+    /// worth of evaluations to avoid repeated atomic loads — the
+    /// `Arc` clone is one bumped refcount, no allocation.
     #[inline]
-    pub fn load(&self) -> arc_swap::Guard<Arc<Snapshot>> {
-        self.inner.load()
+    pub fn load(&self) -> Arc<Snapshot> {
+        self.inner.load_full()
     }
 
     // -- Reads --------------------------------------------------------
@@ -196,30 +200,6 @@ impl WarmCache {
         let prev = self.inner.load();
         let next = Arc::new(prev.with_news_impact(symbol, impact));
         self.inner.store(next);
-    }
-}
-
-// `hedge-risk` defines the `WarmCacheView` read contract used by the
-// Risk_Engine. Implementing it here lets a `WarmCache` be passed
-// directly into `RiskEngine::new(..., warm_cache: Arc<dyn WarmCacheView>, ...)`
-// without an adapter struct. The trait's three accessors map 1:1 to the
-// inherent methods above, with the Risk_Engine's neutral defaults
-// (`market_stability` and `trader_stability` default to 1.0) and the
-// `None`-on-stale convention for `trade_confidence`.
-impl hedge_risk::WarmCacheView for WarmCache {
-    #[inline]
-    fn market_stability(&self) -> f32 {
-        WarmCache::market_stability(self)
-    }
-
-    #[inline]
-    fn trade_confidence(&self, cid: CorrelationId) -> Option<f32> {
-        WarmCache::trade_confidence(self, cid)
-    }
-
-    #[inline]
-    fn trader_stability(&self) -> f32 {
-        WarmCache::trader_stability(self)
     }
 }
 
@@ -334,21 +314,5 @@ mod tests {
         let snap = cache.load();
         assert!((snap.market_stability - 0.7).abs() < f32::EPSILON);
         assert!((snap.trader_stability - 0.8).abs() < f32::EPSILON);
-    }
-
-    #[test]
-    fn warm_cache_view_trait_routes_to_inherent_methods() {
-        use hedge_risk::WarmCacheView;
-        let cache = WarmCache::new(cfg());
-        // Through the trait — same defaults as the inherent methods.
-        assert_eq!(<WarmCache as WarmCacheView>::market_stability(&cache), 1.0);
-        assert_eq!(<WarmCache as WarmCacheView>::trader_stability(&cache), 1.0);
-        assert_eq!(
-            <WarmCache as WarmCacheView>::trade_confidence(&cache, CorrelationId::new()),
-            None
-        );
-        // After a write, the trait surfaces the updated value.
-        cache.store_market_stability(0.4, 0);
-        assert_eq!(<WarmCache as WarmCacheView>::market_stability(&cache), 0.4);
     }
 }

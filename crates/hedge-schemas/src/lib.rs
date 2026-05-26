@@ -113,9 +113,10 @@ pub mod stage {
 /// `OrderState_v1.state` discriminant.
 pub mod order_state {
     use core::fmt;
+    use serde::{Deserialize, Serialize};
 
     /// FSM states for an order in the Execution_Engine (R6.3).
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     #[repr(u8)]
     pub enum OrderLifecycleState {
         /// Order created locally; not yet sent to broker.
@@ -191,7 +192,7 @@ pub mod strategy_id {
 
     /// Configured strategies. Order is stable across the codebase; new
     /// strategies must be appended.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
     #[repr(u8)]
     pub enum StrategyId {
         /// Opening Range Breakout (ORB).
@@ -257,10 +258,11 @@ pub mod strategy_id {
 /// not be reordered.
 pub mod rejection_reason {
     use core::fmt;
+    use serde::{Deserialize, Serialize};
 
     /// Reasons the Risk_Engine may reject a signal (design § Components §
     /// Risk_Engine; § Error Handling § Hot_Path Error Discipline).
-    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
     #[repr(u8)]
     pub enum RejectionReason {
         /// The signal evaluated successfully — i.e. this is the rationale on

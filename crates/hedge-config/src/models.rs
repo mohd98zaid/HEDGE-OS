@@ -50,6 +50,9 @@ pub struct HedgeConfig {
     /// Risk_Engine on the Hot_Path (R9.4, R9.5, R17.4, R19.7; design
     /// § Architecture § Hot_Path Architecture (WarmCache)).
     pub warm_cache: WarmCacheConfig,
+    /// Replay_Engine recorder + player surface (R22; design §
+    /// Components § Replay_Engine).
+    pub replay: ReplayConfig,
 }
 
 // ---------------------------------------------------------------------------
@@ -479,6 +482,81 @@ impl Default for WarmCacheConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Replay_Engine -------------------------------------------------------------
+// ---------------------------------------------------------------------------
+
+/// Default replay-player speed when the UI does not override it on
+/// the `/replay` control plane (R22.2).
+///
+/// Wire form is the snake_case lowercase token shared with the UI
+/// (`ui/src/types/replay.ts` `ReplaySpeed`):
+///
+/// | YAML | Meaning                       |
+/// |------|-------------------------------|
+/// | `x1` | Real-time pacing.             |
+/// | `x10`| Ten-times pacing.             |
+/// | `max`| As fast as the player can run.|
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReplaySpeed {
+    /// Real-time pacing — `monotonic_ns` deltas honoured 1:1.
+    X1,
+    /// Ten-times pacing — `monotonic_ns` deltas divided by 10.
+    X10,
+    /// As-fast-as-possible — no pacing.
+    Max,
+}
+
+impl ReplaySpeed {
+    /// Multiplier for wall-clock pacing. `None` means "no pacing"
+    /// (`Max`); `Some(n)` means each recorded `monotonic_ns` delta is
+    /// divided by `n` before sleeping.
+    #[inline]
+    pub const fn divisor(self) -> Option<u32> {
+        match self {
+            Self::X1 => Some(1),
+            Self::X10 => Some(10),
+            Self::Max => None,
+        }
+    }
+
+    /// Stable lower-case token used in UI events and metric labels.
+    #[inline]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::X1 => "x1",
+            Self::X10 => "x10",
+            Self::Max => "max",
+        }
+    }
+}
+
+/// Replay_Engine recorder + player surface (R22).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ReplayConfig {
+    /// Directory under which `replay/<session_id>/seg-NNNN.rkyv`
+    /// segments are written. Default `./replay`.
+    pub segment_dir: String,
+    /// Maximum size of one segment file before rotation, in bytes.
+    /// Segments also rotate on session boundary regardless of size.
+    /// Default 1 GiB (`1_073_741_824`).
+    pub max_segment_bytes: u64,
+    /// Default speed used by the player when the UI does not specify
+    /// one (R22.2).
+    pub default_speed: ReplaySpeed,
+    /// Deterministic seed for any stochastic component in the player
+    /// (R22.2). Mirrors `Player::new(seed: u64, ...)`.
+    pub rng_seed: u64,
+}
+
+impl Default for ReplayConfig {
+    fn default() -> Self {
+        defaults::replay()
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Serde adapters ------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
@@ -512,6 +590,7 @@ mod broker_id_serde {
             BrokerId::Dhan => "dhan",
             BrokerId::Shoonya => "shoonya",
             BrokerId::AngelOne => "angel_one",
+            BrokerId::Upstox => "upstox",
             BrokerId::Simulated => "simulated",
         })
     }
@@ -523,11 +602,12 @@ mod broker_id_serde {
             "dhan" => BrokerId::Dhan,
             "shoonya" => BrokerId::Shoonya,
             "angel_one" => BrokerId::AngelOne,
+            "upstox" => BrokerId::Upstox,
             "simulated" => BrokerId::Simulated,
             other => {
                 return Err(serde::de::Error::unknown_variant(
                     other,
-                    &["zerodha", "dhan", "shoonya", "angel_one", "simulated"],
+                    &["zerodha", "dhan", "shoonya", "angel_one", "upstox", "simulated"],
                 ));
             }
         })

@@ -92,6 +92,7 @@ struct AiPsychStabilityEvent {
 /// Mirror of `ai.priority.changed.<sym>` payload (see
 /// `hedge-schemas/json_schemas/ai_priority_changed.schema.json`).
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)] // `ts_ns` mirrors the wire schema; we currently apply only `to`.
 struct AiPriorityChangedEvent {
     symbol: String,
     to: String,

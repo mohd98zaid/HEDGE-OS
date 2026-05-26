@@ -26,16 +26,32 @@ ui/coverage/
 .DS_Store
 Thumbs.db
 
-# Local config
+# Local config & secrets
 .env
 .env.local
+.env.production
 /etc/hedge/local.yaml
 
-# Replay logs
+# Docker override (local dev only — disables NATS auth)
+docker-compose.override.yml
+
+# Replay logs (generated at runtime)
 replay/
+# Allow the canonical replay fixture used by the nightly regression
+# harness (task 59.1). Everything under `tests/fixtures/replay/` is
+# committed source — only the on-disk recorder output under the
+# top-level `replay/` directory is generated and ignored.
+!tests/fixtures/replay/
+!tests/fixtures/replay/**
+
+# Logs
 *.log
+gateway_*.txt
 
 # NATS — generated operator/account JWT artefacts. The committed files
 # are placeholders; running docker/nats/provision-creds.sh produces real
 # JWTs that must NOT be committed.
 docker/nats/generated/
+
+# Ruff cache
+.ruff_cache/

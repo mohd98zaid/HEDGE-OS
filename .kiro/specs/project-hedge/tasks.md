@@ -627,8 +627,8 @@ graph TD
     - _Design: Components § AI_Governance_Engine_
     - _Property: 8 — Edge-Triggered Emission of State Changes; Property: 10 — Subscriber Receives Every Event Exactly Once Per Subscribed Subject_
 
-- [ ] 29. AI_Shadow_Mode (`hedge_warm_ai.shadow`)
-  - [~] 29.1 Implement shadow-mode persistence and UI gateway filtering
+- [x] 29. AI_Shadow_Mode (`hedge_warm_ai.shadow`)
+  - [x] 29.1 Implement shadow-mode persistence and UI gateway filtering
     - When a component is shadowed, its outputs are produced and persisted with timestamps but tagged `shadow: true`
     - The UI gateway filters `shadow: true` outputs out of the ranked-signal display surfaced to the trader
     - The AI_Governance_Engine still consumes shadowed outputs to compute accuracy metrics
@@ -640,7 +640,7 @@ graph TD
     - _Design: Operating Modes § AI_Shadow_Mode_
     - _Property: 5 — Serialization and Persistence Round-Trip; Property: 10 — Subscriber Receives Every Event Exactly Once Per Subscribed Subject_
 
-- [~] 30. Warm_AI_Pipeline checkpoint
+- [x] 30. Warm_AI_Pipeline checkpoint
   - Ensure all Warm_AI_Pipeline tests pass, ask the user if questions arise.
 
 ---
@@ -707,7 +707,7 @@ graph TD
 ### E. UI Gateway + Human_Control_UI
 
 - [ ] 36. UI gateway (`hedge-ui-gateway`)
-  - [~] 36.1 Implement the NATS-to-WebSocket bridge with topic-subscription protocol
+  - [-] 36.1 Implement the NATS-to-WebSocket bridge with topic-subscription protocol
     - Implement a single WebSocket endpoint with a topic-subscription protocol; payloads are JSON for UI ergonomics
     - Expose channels `ws://.../market`, `/orderflow`, `/signals` (joining `sig.emitted` with `ai.rank.*` by `correlation_id`), `/risk`, `/exec`, `/news`, `/psych`, `/alerts` (severity-sorted), `/replay`, `/latency`, `/control`
     - Implement `trader.intent.*` publishing on the `/control` channel: `trader.intent.killswitch`, `trader.intent.strategy_toggle`, `trader.intent.priority`, `trader.intent.order`
@@ -809,7 +809,7 @@ graph TD
     - _Property: 7 — Strategy Gating Respects Toggles, Regime, News, and War_Mode; Property: 8 — Edge-Triggered Emission of State Changes_
 
 - [ ] 43. Session manager (`hedge-session`)
-  - [~] 43.1 Implement session-time gate and edge-triggered events
+  - [-] 43.1 Implement session-time gate and edge-triggered events
     - Emit `ops.session.start` at 09:15:00 IST and `ops.session.end` at 15:30:00 IST on each Trading_Session
     - Outside `[09:15, 15:30]` IST, the Risk_Engine blocks all new order entries with `Rejected { reason: SessionClosed }`
     - On `ops.session.end`, the Risk_Engine requests the Execution_Engine cancel all open orders not configured to persist
@@ -822,8 +822,8 @@ graph TD
     - _Design: Components § Risk_Engine_
     - _Property: 8 — Edge-Triggered Emission of State Changes_
 
-- [ ] 44. WarmCache last-known-value lookup table (`hedge-warmcache`)
-  - [-] 44.1 Implement non-blocking last-known-value cache for the Risk_Engine
+- [x] 44. WarmCache last-known-value lookup table (`hedge-warmcache`)
+  - [x] 44.1 Implement non-blocking last-known-value cache for the Risk_Engine
     - Implement `WarmCache` with atomic snapshots for `trade_confidence(correlation_id)`, `market_stability()`, `trader_stability()`, `priority(symbol)`, `news_impact(symbol)`
     - Populate via `WarmCacheUpdater` task subscribed to `ai.rank.*`, `ai.regime.changed`, `ai.psych.stability`, `ai.priority.changed.*`, `ai.news.impact.*`
     - The Risk_Engine reads via atomic load (< 50 µs) and never awaits the Warm_AI_Pipeline
@@ -838,7 +838,7 @@ graph TD
     - _Property: 2 — Authority Hierarchy and Hot_Path Purity_
 
 - [ ] 45. Grafana dashboards
-  - [~] 45.1 Provision Grafana dashboards
+  - [-] 45.1 Provision Grafana dashboards
     - Create dashboards: Hot_Path Latency Budgets (per-stage p99 vs budget), Warm_AI_Pipeline Performance (ranking p95, news fast-path p95, ONNX latency), Broker Performance (per-broker latency, error rate, failovers), Risk Events (limits hit, kill-switch, target reached, cooldowns), Trader Psychology Metrics (stability score timeline, intervention counts)
     - Provision dashboards as JSON committed to the repo and loaded at Grafana startup
     - _Requirements: 27.3_

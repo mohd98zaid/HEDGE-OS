@@ -53,7 +53,7 @@ async fn main() -> Result<()> {
             path = %cfg_path.display(),
             "config not found at path; using workspace defaults",
         );
-        load_default().context("load default config")?
+        load_default()
     };
 
     let nats_url = env::var("HEDGE_NATS_URL").unwrap_or_else(|_| DEFAULT_NATS_URL.to_string());

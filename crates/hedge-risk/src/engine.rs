@@ -365,6 +365,7 @@ impl RiskEngine {
             BrokerId::Dhan,
             BrokerId::Shoonya,
             BrokerId::AngelOne,
+            BrokerId::Upstox,
         ]
         .into_iter()
         .any(|b| match state.broker_latency.latency_ms(b) {

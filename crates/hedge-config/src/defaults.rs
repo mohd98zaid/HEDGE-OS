@@ -8,8 +8,8 @@ use hedge_core::BrokerId;
 use crate::models::{
     AiConfig, BrokerConfig, CapitalConfig, DegradedModeConfig, GovernanceConfig, HedgeConfig,
     ObservabilityConfig, OllamaConfig, OllamaModelConfig, OllamaRole, PostTargetPolicy,
-    PsychologyThresholds, RankingFactorsConfig, RetentionConfig, RiskConfig, SessionConfig,
-    TraderPsychologyConfig, UiConfig, WarModeConfig, WarmCacheConfig,
+    PsychologyThresholds, RankingFactorsConfig, ReplayConfig, ReplaySpeed, RetentionConfig,
+    RiskConfig, SessionConfig, TraderPsychologyConfig, UiConfig, WarModeConfig, WarmCacheConfig,
 };
 
 /// `09:15:00` IST.
@@ -165,6 +165,22 @@ pub fn warm_cache() -> WarmCacheConfig {
     }
 }
 
+/// Replay_Engine defaults — design § Components § Replay_Engine.
+///
+/// Segment size of 1 GiB matches the spec brief for task 40.1; the
+/// `rng_seed` is exposed on `Player::new(seed, ...)` so tests can
+/// override it. The default seed is the lower 32 bits of `0xC0FFEE`
+/// kept small enough to round-trip cleanly through YAML number
+/// parsers without scientific-notation surprises.
+pub fn replay() -> ReplayConfig {
+    ReplayConfig {
+        segment_dir: "./replay".to_string(),
+        max_segment_bytes: 1_073_741_824, // 1 GiB
+        default_speed: ReplaySpeed::X1,
+        rng_seed: 0x00C0_FFEE,
+    }
+}
+
 /// Composed default `HedgeConfig` matching the design YAML exactly.
 pub fn hedge_config() -> HedgeConfig {
     HedgeConfig {
@@ -179,5 +195,6 @@ pub fn hedge_config() -> HedgeConfig {
         ollama: ollama(),
         observability: observability(),
         warm_cache: warm_cache(),
+        replay: replay(),
     }
 }

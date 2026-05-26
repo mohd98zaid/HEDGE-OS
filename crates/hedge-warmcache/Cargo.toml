@@ -6,21 +6,19 @@ rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
 description = "Last-known-value cache populated asynchronously from ai.* NATS subjects. Read by the Hot_Path with no blocking."
-
-[lib]
-path = "src/lib.rs"
-
 # Build script enforces the architectural-forbid contract at compile time
 # (defensive in-crate half of the Hot_Path Purity gate; full transitive
 # closure is asserted by the CI workflow from task 8.1).
 build = "build.rs"
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 hedge-core    = { path = "../hedge-core" }
 hedge-bus     = { path = "../hedge-bus" }
 hedge-config  = { path = "../hedge-config" }
 hedge-schemas = { path = "../hedge-schemas" }
-hedge-risk    = { path = "../hedge-risk" }
 
 # Hot_Path read primitive: a single atomic pointer-load gives the Risk_Engine
 # every WarmCache value with no lock contention against the updater task.

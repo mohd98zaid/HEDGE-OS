@@ -38,6 +38,7 @@ use crate::metrics::{
     bid_ask_imbalance, liquidity_pressure, OrderflowSnapshot, RollingDelta,
     DEFAULT_ROLLING_DELTA_WINDOW_NS,
 };
+use crate::war_mode::WarModeProfile;
 
 /// Per-symbol state owned by the engine.
 pub struct OrderflowState {
@@ -159,6 +160,10 @@ impl OrderflowState {
 pub struct OrderflowEngine {
     inner: Arc<Mutex<HashMap<SymbolId, OrderflowState>>>,
     rolling_delta_window_ns: u64,
+    /// Runtime War_Mode profile. Updated by the engine binary's
+    /// `ops.warmode.*` subscriber and read on the per-event hot loop
+    /// to scale detector sensitivity (R26.2).
+    war_mode: Arc<WarModeProfile>,
 }
 
 impl Default for OrderflowEngine {
@@ -178,6 +183,7 @@ impl OrderflowEngine {
         Self {
             inner: Arc::new(Mutex::new(HashMap::new())),
             rolling_delta_window_ns,
+            war_mode: Arc::new(WarModeProfile::inactive()),
         }
     }
 
@@ -228,6 +234,16 @@ impl OrderflowEngine {
     /// Number of symbols currently tracked. Useful for tests and metrics.
     pub fn tracked_symbol_count(&self) -> usize {
         self.inner.lock().len()
+    }
+
+    /// Shared handle to the runtime War_Mode profile. The engine binary
+    /// drives the [`WarModeProfile`] from its `ops.warmode.*` subscriber
+    /// (`hedge-session::WarModeController` is the producer); detectors
+    /// and the public liquidity-event filter read the profile on each
+    /// event to scale sensitivity per R26.2.
+    #[inline]
+    pub fn war_mode(&self) -> &Arc<WarModeProfile> {
+        &self.war_mode
     }
 }
 
@@ -341,6 +357,23 @@ mod tests {
         // Re-ensuring is idempotent.
         eng.ensure_symbol(SymbolId::new(1));
         assert_eq!(eng.tracked_symbol_count(), 2);
+    }
+
+    #[test]
+    fn engine_war_mode_handle_starts_inactive_and_can_be_activated() {
+        // Verifies the engine surfaces a shared `WarModeProfile` handle
+        // that the binary's `ops.warmode.*` subscriber drives. R26.2.
+        use crate::war_mode::NORMAL_SCAN_MULTIPLIER as NSM;
+        let eng = OrderflowEngine::new();
+        let wm = Arc::clone(eng.war_mode());
+        assert!(!wm.is_active());
+        wm.activate(2.0, 0.6);
+        assert!(eng.war_mode().is_active());
+        assert_eq!(eng.war_mode().scan_multiplier(), 2.0);
+        assert_eq!(eng.war_mode().sensitivity_factor(), 2.0);
+        wm.deactivate();
+        assert!(!eng.war_mode().is_active());
+        assert_eq!(eng.war_mode().sensitivity_factor(), NSM);
     }
 
     #[test]

@@ -38,6 +38,7 @@
 pub mod engine;
 pub mod incremental;
 pub mod state;
+pub mod war_mode;
 
 #[cfg(test)]
 pub(crate) mod tests;
@@ -46,6 +47,7 @@ pub use engine::{
     encode, process_tick_into_state, FeatureExtractionEngine, FlatBuffersCodecBridge,
     RawFeaturePayload, FEATURE_EXTRACTION_BUDGET_NS, FEATURE_WIRE_SIZE,
 };
+pub use war_mode::{WarModeProfile, NORMAL_MIN_CONFIDENCE, NORMAL_SCAN_MULTIPLIER};
 pub use incremental::candle::CandleStructure;
 pub use state::{
     DeltaSample, FeatureState, LastBook, ATR_WINDOW, COMPRESSION_WINDOW, EMA_FAST_PERIOD,

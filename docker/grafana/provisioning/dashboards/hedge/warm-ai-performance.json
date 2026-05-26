@@ -1,0 +1,181 @@
+{
+  "uid": "hedge-warm-ai-performance",
+  "title": "Warm_AI_Pipeline Performance",
+  "description": "Ranking p95, news fast-path p95, and ONNX inference p95 (R11.4, R12.2, R28.6). Source: obs.latency.ai_<stage> records published by hedge_warm_ai.onnx_runtime.LatencyTracer.",
+  "tags": ["hedge", "warm-ai", "latency"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "timezone": "Asia/Kolkata",
+  "time": {"from": "now-1h", "to": "now"},
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "component",
+        "label": "Component",
+        "type": "custom",
+        "query": "ai_ranking,ai_finbert,ai_distilbert,ai_xgboost,ai_lightgbm,ai_isolation_forest,ai_tiny_lstm",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"}
+      },
+      {
+        "name": "symbol",
+        "label": "Symbol",
+        "type": "textbox",
+        "current": {"text": "", "value": ""},
+        "query": ""
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "AI Ranking p95 (ns)",
+      "description": "obs.latency.ai_ranking p95 surfaced via Loki structured logs. Fallback to Prometheus when the obs collector is degraded.",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, {job=\"obs.latency\"} | json | stage=`ai_ranking` | unwrap nanos [1m])",
+          "legendFormat": "ranking p95",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 50000000}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "line"}, "lineWidth": 2, "fillOpacity": 10}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "News Fast-path p95 (FinBERT, ns)",
+      "description": "obs.latency.ai_finbert p95 — News fast path (R12.2). Threshold line at 10 ms.",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, {job=\"obs.latency\"} | json | stage=`ai_finbert` | unwrap nanos [1m])",
+          "legendFormat": "finbert p95",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 10000000}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "line"}, "lineWidth": 2, "fillOpacity": 10}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "ONNX Inference p95 by component",
+      "description": "Per-component ONNX p95 latency (xgboost, lightgbm, isolation_forest, tiny_lstm, distilbert) from obs.latency.ai_<stage>.",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "quantile_over_time(0.95, {job=\"obs.latency\"} | json | stage=~`ai_xgboost|ai_lightgbm|ai_isolation_forest|ai_tiny_lstm|ai_distilbert` | stage=~`$component` | unwrap nanos [1m]) by (stage)",
+          "legendFormat": "{{stage}} p95",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "custom": {"lineWidth": 2, "fillOpacity": 5}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "AI Drift gauge by component",
+      "description": "hedge_ai_drift{component=~\"$component\"} — per-component AI drift gauge (R24.1).",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 18},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hedge_ai_drift{component=~\"$component\"}",
+          "legendFormat": "{{component}}",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.3},
+              {"color": "red", "value": 0.6}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value"}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "AI budget breach rate (obs.budget.breach.ai_*)",
+      "description": "Count of obs.budget.breach.ai_<stage> events per minute, broken out by AI stage (R28.6).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 6, "w": 12, "x": 12, "y": 18},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (stage) (count_over_time({job=\"obs.budget.breach\"} | json | stage=~`ai_.*` | stage=~`$component` [1m]))",
+          "legendFormat": "{{stage}}",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    }
+  ],
+  "annotations": {"list": []},
+  "links": []
+}

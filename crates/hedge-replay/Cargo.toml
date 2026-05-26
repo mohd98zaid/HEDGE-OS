@@ -5,7 +5,13 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 publish.workspace = true
-description = "Replay_Engine: append-only recorder + deterministic player for sessions."
+description = "Replay_Engine: append-only recorder + deterministic player with simulated broker (R22)."
+
+# Build script enforces the architectural-forbid contract at compile time
+# (defensive in-crate half of the Hot_Path Purity gate; full transitive
+# closure is asserted by the CI workflow from task 8.1). Pattern matches
+# crates/hedge-warmcache/build.rs and crates/hedge-bus/build.rs.
+build = "build.rs"
 
 [lib]
 path = "src/lib.rs"
@@ -14,15 +20,59 @@ path = "src/lib.rs"
 name = "hedge-replay"
 path = "src/main.rs"
 
+# Nightly replay-regression harness (task 59.1). Plays a recorded
+# canonical session twice via `Player::open` and asserts byte-equality
+# of the emitted record stream and per-`RecordKind` histogram. Used by
+# `.github/workflows/nightly.yml::replay-regression`.
+[[bin]]
+name = "replay-regression"
+path = "src/bin/regression.rs"
+
+# Deterministic generator for the canonical replay fixture under
+# `tests/fixtures/replay/canonical/<session_id>/`. Used both to commit
+# the fixture and to regenerate it on demand (see the README in that
+# directory). Used by `.github/workflows/nightly.yml::replay-regression`
+# as a pre-flight when the committed fixture is missing.
+[[bin]]
+name = "gen-canonical-replay"
+path = "src/bin/gen_canonical.rs"
+
 [dependencies]
-hedge-core = { path = "../hedge-core" }
-hedge-bus = { path = "../hedge-bus" }
+# Core primitives and typed transport. The Replay_Engine deliberately
+# does NOT depend on `hedge-broker-simulated` or `hedge-broker-api`:
+# the design (task 40.1 brief) routes the simulated-broker binding
+# through a config-driven flag the Execution_Engine reads at startup,
+# not through a direct crate link. That keeps the crate dependency
+# graph in line with the Replay-Recording Flow diagram (R22.4) and
+# avoids re-pulling the entire broker stack into the recorder.
+hedge-core    = { path = "../hedge-core" }
+hedge-bus     = { path = "../hedge-bus" }
 hedge-schemas = { path = "../hedge-schemas" }
-hedge-obs = { path = "../hedge-obs" }
-hedge-broker-simulated = { path = "../hedge-broker-simulated" }
-tokio = { workspace = true }
-rkyv = { workspace = true }
-bytes = { workspace = true }
-tracing = { workspace = true }
+hedge-config  = { path = "../hedge-config" }
+
+tokio              = { workspace = true }
+async-nats         = { workspace = true }
+redis              = { workspace = true }
+rkyv               = { workspace = true }
+bytes              = { workspace = true }
+serde              = { workspace = true }
+serde_json         = { workspace = true }
+chrono             = { workspace = true }
+thiserror          = { workspace = true }
+anyhow             = { workspace = true }
+tracing            = { workspace = true }
 tracing-subscriber = { workspace = true }
-anyhow = { workspace = true }
+once_cell          = { workspace = true }
+parking_lot        = { workspace = true }
+futures            = { workspace = true }
+
+# Seeded RNG for any stochastic component in the Player (R22.2 —
+# replay determinism). `rand_chacha` provides ChaCha20Rng which is
+# explicitly seedable and reproducible across platforms; `rand`
+# supplies the `SeedableRng` / `RngCore` traits.
+rand        = { version = "0.8", default-features = false, features = ["std", "std_rng"] }
+rand_chacha = { version = "0.3", default-features = false, features = ["std"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio    = { workspace = true, features = ["macros", "rt", "rt-multi-thread", "test-util"] }

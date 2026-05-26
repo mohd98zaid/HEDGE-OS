@@ -1,0 +1,256 @@
+name: Nightly Soak
+
+# End-to-end nightly regression harness for project-hedge (task 59.1).
+#
+# Four jobs run in parallel; any failure fails the whole workflow.
+#
+#   1. replay-regression — replays the canonical recorded session
+#      twice via `cargo run --bin replay-regression` and asserts
+#      byte-equal Signal_v1 / RiskDecision / OrderIntent_v1
+#      / OrderState_v1 streams plus identical RecordKind histograms.
+#      Property 12, R22.2.
+#
+#   2. proptest-soak — runs the workspace's property-based test suites
+#      with `PROPTEST_CASES=5000` (vs 100 on PR CI). Properties 1–12.
+#      The PBTs already live as `proptest!` blocks inside each
+#      Hot_Path crate's tests; raising the case count here is the
+#      "5,000 iterations in nightly" lever the design's Testing
+#      Strategy specifies.
+#
+#   3. chaos — `scripts/chaos-mid-session.sh` brings up a minimal
+#      compose stack, kills `hedge-market-data` mid-session, and
+#      asserts (a) every other service stays up (R29.6), and (b) the
+#      supervisor publishes a Reconnect action (Property 11, R25.1).
+#
+#   4. alloc-benchmark — runs the workspace's `alloc-tracking`-gated
+#      tests, which use `hedge_core::alloc_harness::assert_no_alloc`
+#      to fail the build on any steady-state heap allocation in the
+#      Hot_Path. R1.4, R2.6, R3.4.
+#
+# References:
+#   - .kiro/specs/project-hedge/design.md          (§ Testing Strategy)
+#   - .kiro/specs/project-hedge/requirements.md    (1.4, 2.6, 3.4, 22.1, 22.2, 22.4, 29.6)
+#   - tests/fixtures/replay/canonical/README.md    (canonical session contract)
+#   - scripts/chaos-mid-session.sh                 (chaos harness)
+
+on:
+  schedule:
+    # 02:00 UTC every day. Mumbai VPS is UTC+5:30 so this lands at
+    # 07:30 IST — safely before pre-market connectivity rehearsals.
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+    # Operator-triggered re-runs (no inputs needed).
+  push:
+    # The workflow itself is the artifact; let workflow edits exercise
+    # it without waiting for the schedule. This is intentionally
+    # narrow — the heavy `proptest-soak` job is gated on `paths`.
+    paths:
+      - ".github/workflows/nightly.yml"
+      - "scripts/chaos-mid-session.sh"
+      - "crates/hedge-replay/src/bin/regression.rs"
+      - "crates/hedge-replay/src/bin/gen_canonical.rs"
+      - "tests/fixtures/replay/canonical/**"
+
+# Cancel an in-flight run when a new commit lands on the same branch.
+# Nightly soak takes long enough that running two simultaneously is
+# almost always wasted.
+concurrency:
+  group: nightly-soak-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # ------------------------------------------------------------------ #
+  # 1. Replay regression — Property 12, R22.2.
+  # ------------------------------------------------------------------ #
+  replay-regression:
+    name: Replay regression (canonical session diff)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: "-D warnings"
+      CANONICAL_DIR: tests/fixtures/replay/canonical
+      CANONICAL_SESSION_ID: "20251130"
+      # The replay-regression binary has a built-in default seed
+      # (`0xDEAD_BEEF_CAFE_BABE`) that matches the canonical fixture's
+      # generation parameters. We do not override it here so the CI
+      # invocation stays in lock-step with operator-local invocations.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.78.0
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build replay binaries
+        run: cargo build --release --bin replay-regression --bin gen-canonical-replay
+
+      - name: Ensure canonical session exists (regen if missing)
+        run: |
+          set -euo pipefail
+          if [[ ! -d "${CANONICAL_DIR}/${CANONICAL_SESSION_ID}" ]]; then
+            echo "canonical session missing — regenerating"
+            ./target/release/gen-canonical-replay \
+              --out "${CANONICAL_DIR}" \
+              --session-id "${CANONICAL_SESSION_ID}" \
+              --records 64
+          fi
+          ls -la "${CANONICAL_DIR}/${CANONICAL_SESSION_ID}"
+
+      - name: Replay canonical session twice and diff
+        run: |
+          set -euo pipefail
+          ./target/release/replay-regression \
+            --dir "${CANONICAL_DIR}" \
+            --session-id "${CANONICAL_SESSION_ID}"
+
+  # ------------------------------------------------------------------ #
+  # 2. Property suites at 5,000 iterations each (Properties 1–12).
+  # ------------------------------------------------------------------ #
+  proptest-soak:
+    name: Property soak (5,000 iterations)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: "-D warnings"
+      # Bumps every `proptest!` invocation in the workspace from its
+      # default (≥ 100) to 5,000 cases per the design's Testing
+      # Strategy. Crate-level overrides via
+      # `#![proptest_config(ProptestConfig::with_cases(N))]` still
+      # apply as floors, but no crate sets a higher value than 5,000.
+      PROPTEST_CASES: "5000"
+      # Disable the file-backed regression archive — CI runs are
+      # ephemeral and writing the archive serialises across suites.
+      PROPTEST_DISABLE_FAILURE_PERSISTENCE: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.78.0
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build workspace tests
+        run: cargo test --workspace --no-run --release
+
+      - name: Run property suites at PROPTEST_CASES=5000
+        run: |
+          set -euo pipefail
+          echo "PROPTEST_CASES=${PROPTEST_CASES}"
+          # `--release` keeps the soak realistic: the same codegen
+          # path the production binary takes. Single-thread test
+          # runner so per-property flakes are attributable.
+          cargo test --workspace --release -- --nocapture --test-threads=1
+
+  # ------------------------------------------------------------------ #
+  # 3. Chaos — kill a service mid-session, assert recovery (Property 11, R29.6).
+  # ------------------------------------------------------------------ #
+  chaos:
+    name: Chaos (kill hedge-market-data mid-session)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    env:
+      COMPOSE_FILE: docker-compose.yml
+      COMPOSE_PROFILE: hot_path
+      WARMUP_SECONDS: "30"
+      SETTLE_SECONDS: "20"
+      KILL_TARGET: hedge-market-data
+      SUPERVISOR_SERVICE: hedge-supervisor
+      NATS_SERVICE: nats
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Confirm Docker Compose v2 is available
+        run: docker compose version
+
+      - name: Make chaos script executable
+        run: chmod +x scripts/chaos-mid-session.sh
+
+      # Pre-build the Hot_Path service images. The compose file tags
+      # them `hedge/<svc>:dev`, which is a local-only tag; without
+      # this step `docker compose up -d` would try to pull from a
+      # registry and fail. Building all required services up front
+      # keeps the chaos timing deterministic — the script's
+      # `WARMUP_SECONDS` countdown starts only after every container
+      # is up and image-pull / build time does not eat into it.
+      - name: Build Hot_Path images for chaos run
+        run: |
+          set -euo pipefail
+          docker compose --profile hot_path build \
+            hedge-market-data \
+            hedge-supervisor \
+            hedge-orderflow \
+            hedge-features \
+            hedge-signals \
+            hedge-risk \
+            hedge-exec \
+            hedge-position
+
+      - name: Run chaos suite
+        run: scripts/chaos-mid-session.sh
+
+      - name: Capture compose logs on failure
+        if: failure()
+        run: |
+          set -euo pipefail
+          docker compose -f "${COMPOSE_FILE}" logs --tail=500 || true
+
+  # ------------------------------------------------------------------ #
+  # 4. Allocation benchmark — fail on any Hot_Path heap allocation.
+  # ------------------------------------------------------------------ #
+  alloc-benchmark:
+    name: Allocation benchmark (Hot_Path no-alloc)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: always
+      RUSTFLAGS: "-D warnings"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@1.78.0
+
+      - name: Restore Cargo cache
+        uses: Swatinem/rust-cache@v2
+
+      # Run the alloc-tracking-gated tests in every crate that
+      # exposes the feature. Each crate registers
+      # `stats_alloc::INSTRUMENTED_SYSTEM` as the global allocator
+      # under `cfg(feature = "alloc-tracking")`, so the
+      # `assert_no_alloc` harness in `hedge_core::alloc_harness` panics
+      # the moment a steady-state Hot_Path operation allocates.
+      #
+      # We run the crates one at a time rather than via
+      # `--workspace --features alloc-tracking` because cargo
+      # propagates the feature flag through every workspace member —
+      # crates that do not declare `alloc-tracking` would fail to
+      # build with `error: package does not have feature
+      # 'alloc-tracking'`. The list mirrors the
+      # `forbid_modules`-tracked Hot_Path crate set in
+      # `scripts/check-forbidden-deps.sh`, restricted to those that
+      # have wired the feature so far. Add new crates here as their
+      # alloc harnesses come online.
+      - name: hedge-core alloc tests
+        run: cargo test --release -p hedge-core --features alloc-tracking -- --nocapture
+
+      - name: hedge-orderflow alloc tests
+        run: cargo test --release -p hedge-orderflow --features alloc-tracking -- --nocapture
+
+      - name: hedge-features alloc tests
+        run: cargo test --release -p hedge-features --features alloc-tracking -- --nocapture

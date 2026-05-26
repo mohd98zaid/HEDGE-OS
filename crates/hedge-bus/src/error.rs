@@ -18,21 +18,21 @@ pub enum BusError {
     NatsConnect(String),
 
     /// NATS publish failed (broker rejection, network drop, etc).
-    #[error("nats publish failed on {subject}: {source}")]
+    #[error("nats publish failed on {subject}: {message}")]
     NatsPublish {
         /// The subject the publish targeted.
         subject: String,
         /// Underlying error message.
-        source: String,
+        message: String,
     },
 
     /// NATS subscribe failed (ACL rejection, malformed subject, etc).
-    #[error("nats subscribe failed on {subject}: {source}")]
+    #[error("nats subscribe failed on {subject}: {message}")]
     NatsSubscribe {
         /// The subject the subscribe targeted.
         subject: String,
         /// Underlying error message.
-        source: String,
+        message: String,
     },
 
     /// Redis call failed (connection drop, command error, etc).
@@ -78,7 +78,7 @@ impl BusError {
     pub fn publish<E: std::fmt::Display>(subject: impl Into<String>, source: E) -> Self {
         Self::NatsPublish {
             subject: subject.into(),
-            source: source.to_string(),
+            message: source.to_string(),
         }
     }
 
@@ -87,7 +87,7 @@ impl BusError {
     pub fn subscribe<E: std::fmt::Display>(subject: impl Into<String>, source: E) -> Self {
         Self::NatsSubscribe {
             subject: subject.into(),
-            source: source.to_string(),
+            message: source.to_string(),
         }
     }
 

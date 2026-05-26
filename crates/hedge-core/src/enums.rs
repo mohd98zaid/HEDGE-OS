@@ -70,7 +70,7 @@ impl Regime {
 /// Broker identifier (R7.1). The `Simulated` variant is bound by the
 /// Execution_Engine when `ReplayMode::On` (R22.4).
 #[repr(u8)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum BrokerId {
     /// Zerodha Kite (default primary broker).
     Zerodha = 0,
@@ -80,6 +80,8 @@ pub enum BrokerId {
     Shoonya = 2,
     /// Angel One SmartAPI.
     AngelOne = 3,
+    /// Upstox API v2.
+    Upstox = 4,
     /// In-process simulated broker used in replay and tests.
     Simulated = 255,
 }

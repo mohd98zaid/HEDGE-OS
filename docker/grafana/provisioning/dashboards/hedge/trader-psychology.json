@@ -1,0 +1,220 @@
+{
+  "uid": "hedge-trader-psychology",
+  "title": "Trader Psychology Metrics",
+  "description": "Trader_Stability_Score timeline and intervention counts (R16). Source: ai.psych.stability and ai.psych.intervention events shipped via Loki, plus hedge_trader_emotional_risk Prometheus gauge.",
+  "tags": ["hedge", "psychology", "trader"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "timezone": "Asia/Kolkata",
+  "time": {"from": "now-24h", "to": "now"},
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "component",
+        "label": "Intervention action",
+        "type": "custom",
+        "query": "warning,cooldown,size_reduction,kill_switch",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Trader_Stability_Score timeline",
+      "description": "Latest ai.psych.stability score in [0.0, 1.0] over time. Score = clamp(0.35×D + 0.25×E + 0.20×R + 0.20×P, 0, 1) (R16.2).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "avg_over_time({job=\"ai.psych.stability\"} | json | unwrap score [1m])",
+          "legendFormat": "Trader_Stability_Score",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 0.4},
+              {"color": "yellow", "value": 0.6},
+              {"color": "green", "value": 0.8}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "area"}, "lineWidth": 2, "fillOpacity": 20}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Stability score components (latest)",
+      "description": "Latest values of the four factor inputs to Trader_Stability_Score: Discipline (D), EmotionalControl (E), RiskConsistency (R), Patience (P).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 10},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "last_over_time({job=\"ai.psych.stability\"} | json | unwrap discipline [5m])",
+          "legendFormat": "Discipline",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        },
+        {
+          "refId": "B",
+          "expr": "last_over_time({job=\"ai.psych.stability\"} | json | unwrap emotional_control [5m])",
+          "legendFormat": "EmotionalControl",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        },
+        {
+          "refId": "C",
+          "expr": "last_over_time({job=\"ai.psych.stability\"} | json | unwrap risk_consistency [5m])",
+          "legendFormat": "RiskConsistency",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        },
+        {
+          "refId": "D",
+          "expr": "last_over_time({job=\"ai.psych.stability\"} | json | unwrap patience [5m])",
+          "legendFormat": "Patience",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "orange", "value": 0.4},
+              {"color": "green", "value": 0.7}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value", "orientation": "horizontal"}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Intervention counts by action (rate / minute)",
+      "description": "Count of ai.psych.intervention events per minute, broken out by action: warning, cooldown, size_reduction, kill_switch (R16.5-R16.7).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 16},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (action) (count_over_time({job=\"ai.psych.intervention\"} | json | action=~`$component` [1m]))",
+          "legendFormat": "{{action}}",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 10, "stacking": {"mode": "normal", "group": "A"}}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Total interventions by action ($__range)",
+      "description": "Total count of each intervention action over the dashboard time range.",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 16},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (action) (count_over_time({job=\"ai.psych.intervention\"} | json | action=~`$component` [$__range]))",
+          "legendFormat": "{{action}}",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 20}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value", "orientation": "auto"}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Trader emotional-risk gauge",
+      "description": "hedge_trader_emotional_risk — Prometheus gauge derived from the Trader_Stability_Score (R16). Higher values indicate elevated risk of behavioral interventions.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 25},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hedge_trader_emotional_risk",
+          "legendFormat": "emotional_risk",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.4},
+              {"color": "red", "value": 0.7}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "line"}, "lineWidth": 2, "fillOpacity": 10}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Kill-switch interventions",
+        "datasource": {"type": "loki", "uid": "hedge-loki"},
+        "enable": true,
+        "iconColor": "red",
+        "expr": "{job=\"ai.psych.intervention\"} | json | action=`kill_switch`",
+        "hide": false,
+        "target": {"matchers": [{"name": "job", "value": "ai.psych.intervention"}]}
+      }
+    ]
+  },
+  "links": []
+}

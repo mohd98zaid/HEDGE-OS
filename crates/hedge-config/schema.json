@@ -14,7 +14,8 @@
     "brokers",
     "ollama",
     "observability",
-    "warm_cache"
+    "warm_cache",
+    "replay"
   ],
   "$defs": {
     "TimeIst": {
@@ -23,7 +24,7 @@
     },
     "BrokerId": {
       "type": "string",
-      "enum": ["zerodha", "dhan", "shoonya", "angel_one", "simulated"]
+      "enum": ["zerodha", "dhan", "shoonya", "angel_one", "upstox", "simulated"]
     },
     "OllamaRole": {
       "type": "string",
@@ -32,6 +33,10 @@
     "PostTargetPolicy": {
       "type": "string",
       "enum": ["reduce_size_to_zero", "stop_for_session", "halve_size", "continue"]
+    },
+    "ReplaySpeed": {
+      "type": "string",
+      "enum": ["x1", "x10", "max"]
     },
     "UnitInterval": {
       "type": "number",
@@ -259,6 +264,22 @@
         "trade_confidence_lru_size": { "type": "integer", "minimum": 1 },
         "staleness_window_ms": { "type": "integer", "minimum": 0 },
         "nats_url": { "type": "string", "minLength": 1 }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "segment_dir",
+        "max_segment_bytes",
+        "default_speed",
+        "rng_seed"
+      ],
+      "properties": {
+        "segment_dir": { "type": "string", "minLength": 1 },
+        "max_segment_bytes": { "type": "integer", "minimum": 1 },
+        "default_speed": { "$ref": "#/$defs/ReplaySpeed" },
+        "rng_seed": { "type": "integer", "minimum": 0 }
       }
     }
   }

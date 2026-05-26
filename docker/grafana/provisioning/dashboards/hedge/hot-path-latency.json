@@ -1,0 +1,224 @@
+{
+  "uid": "hedge-hot-path-latency",
+  "title": "Hot_Path Latency Budgets",
+  "description": "Per-stage Hot_Path latency p99 vs design budget (R28.1-R28.5). Source: hedge_tick_ingest_ns, hedge_feature_extract_ns, hedge_risk_check_ns, hedge_exec_route_ns, hedge_broker_latency_ns.",
+  "tags": ["hedge", "hot-path", "latency"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "timezone": "Asia/Kolkata",
+  "time": {"from": "now-30m", "to": "now"},
+  "refresh": "10s",
+  "templating": {
+    "list": [
+      {
+        "name": "broker",
+        "label": "Broker",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+        "query": {"query": "label_values(hedge_broker_latency_ns_bucket, broker)", "refId": "broker"},
+        "regex": "",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"},
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "component",
+        "label": "Component",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+        "query": {"query": "label_values(hedge_budget_breach_total, stage)", "refId": "component"},
+        "regex": "",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"},
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Tick Ingest p99 (ns) vs 2 ms budget",
+      "description": "Market_Data_Engine receive→publish (hedge_tick_ingest_ns). Threshold line at TICK_INGEST_BUDGET_NS = 2_000_000 ns.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(hedge_tick_ingest_ns_bucket[1m])))",
+          "legendFormat": "p99",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 2000000}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "line"}, "lineWidth": 2, "fillOpacity": 10}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Feature Extract p99 (ns) vs 3 ms budget",
+      "description": "Feature_Extraction_Engine compute (hedge_feature_extract_ns). Threshold line at FEATURE_EXTRACTION_BUDGET_NS = 3_000_000 ns.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(hedge_feature_extract_ns_bucket[1m])))",
+          "legendFormat": "p99",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 3000000}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "line"}, "lineWidth": 2, "fillOpacity": 10}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Risk Check p99 (ns) vs 2 ms budget",
+      "description": "Risk_Engine evaluate (hedge_risk_check_ns). Threshold line at RISK_CHECK_BUDGET_NS = 2_000_000 ns.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(hedge_risk_check_ns_bucket[1m])))",
+          "legendFormat": "p99",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 2000000}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "line"}, "lineWidth": 2, "fillOpacity": 10}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Execution Route p99 (ns) vs 5 ms budget",
+      "description": "Execution_Engine route (hedge_exec_route_ns). Threshold line at EXEC_ROUTE_BUDGET_NS = 5_000_000 ns.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(hedge_exec_route_ns_bucket[1m])))",
+          "legendFormat": "p99",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 5000000}
+            ]
+          },
+          "custom": {"thresholdsStyle": {"mode": "line"}, "lineWidth": 2, "fillOpacity": 10}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Position Update p99 (ns) — proxy via broker submit round-trip",
+      "description": "Per-broker submit round-trip (hedge_broker_latency_ns{broker=~\"$broker\"}). The Position_Engine update budget is part of the end-to-end 50 ms ceiling; this panel is the closest available signal until a dedicated histogram lands.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (broker, le) (rate(hedge_broker_latency_ns_bucket{broker=~\"$broker\"}[1m])))",
+          "legendFormat": "{{broker}} p99",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ns",
+          "custom": {"lineWidth": 2, "fillOpacity": 5}
+        },
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Per-stage budget breach rate (R28.6)",
+      "description": "rate(hedge_budget_breach_total{stage=~\"$component\"}[1m]) per stage — non-zero values indicate the stage exceeded its configured budget.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 24},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (stage) (rate(hedge_budget_breach_total{stage=~\"$component\"}[1m]))",
+          "legendFormat": "{{stage}}",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    }
+  ],
+  "annotations": {"list": []},
+  "links": []
+}

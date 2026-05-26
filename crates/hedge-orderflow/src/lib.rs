@@ -43,6 +43,7 @@ pub mod engine;
 pub mod events;
 pub mod heatmap;
 pub mod metrics;
+pub mod war_mode;
 
 pub use book::{LiveBook, MAX_BOOK_LEVELS};
 pub use engine::{OrderflowEngine, OrderflowState};
@@ -55,3 +56,4 @@ pub use metrics::{
     bid_ask_imbalance, liquidity_pressure, OrderflowSnapshot, RollingDelta,
     DEFAULT_ROLLING_DELTA_WINDOW_NS, LIQUIDITY_PRESSURE_DEPTH, ROLLING_DELTA_BUCKETS,
 };
+pub use war_mode::{WarModeProfile, NORMAL_MIN_CONFIDENCE, NORMAL_SCAN_MULTIPLIER};

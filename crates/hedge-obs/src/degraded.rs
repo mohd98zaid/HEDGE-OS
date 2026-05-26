@@ -188,9 +188,10 @@ impl<const N: usize, T> BoundedRingLogBuffer<N, T> {
         let cap = self.capacity;
         let evicted = if g.len == cap {
             // Full — replace the oldest slot and advance head.
-            let displaced = g.buf[g.head].take();
-            g.buf[g.head] = Some(value);
-            g.head = (g.head + 1) % cap;
+            let head = g.head;
+            let displaced = g.buf[head].take();
+            g.buf[head] = Some(value);
+            g.head = (head + 1) % cap;
             displaced
         } else {
             // Not full — append at (head + len) mod cap.

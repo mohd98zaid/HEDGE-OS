@@ -23,6 +23,7 @@ members = [
     "crates/hedge-broker-dhan",
     "crates/hedge-broker-shoonya",
     "crates/hedge-broker-angelone",
+    "crates/hedge-broker-upstox",
     "crates/hedge-broker-simulated",
 
     # Cross-cutting infrastructure

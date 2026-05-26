@@ -41,8 +41,8 @@ pub use loader::{fail_closed, load_default, load_from_path, load_from_str, load_
 pub use models::{
     AiConfig, BrokerConfig, CapitalConfig, DegradedModeConfig, GovernanceConfig, HedgeConfig,
     ObservabilityConfig, OllamaConfig, OllamaModelConfig, OllamaRole, PostTargetPolicy,
-    PsychologyThresholds, RankingFactorsConfig, RetentionConfig, RiskConfig, SessionConfig,
-    TraderPsychologyConfig, UiConfig, WarModeConfig, WarmCacheConfig,
+    PsychologyThresholds, RankingFactorsConfig, ReplayConfig, ReplaySpeed, RetentionConfig,
+    RiskConfig, SessionConfig, TraderPsychologyConfig, UiConfig, WarModeConfig, WarmCacheConfig,
 };
 pub use pinned::{MutableConfig, PinnedConfig};
 pub use validation::{validate_json, validator, SCHEMA_JSON};

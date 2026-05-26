@@ -1,0 +1,191 @@
+{
+  "uid": "hedge-risk-events",
+  "title": "Risk Events",
+  "description": "Edge-triggered risk events: kill-switch activations, profit-target reached, cooldown engagements, and per-limit-type rejections (R5.2-R5.11, R32.3, Property 8).",
+  "tags": ["hedge", "risk"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "timezone": "Asia/Kolkata",
+  "time": {"from": "now-24h", "to": "now"},
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "symbol",
+        "label": "Symbol",
+        "type": "textbox",
+        "current": {"text": "", "value": ""},
+        "query": ""
+      },
+      {
+        "name": "component",
+        "label": "Reject reason",
+        "type": "custom",
+        "query": "MaxDailyLoss,MaxPositionPerSymbol,MaxLeverage,MaxDrawdown,MaxTradeFrequency,MaxExposure,SlippageCooldown,VolatilityBlock,BrokerLatencyBlock,SessionClosed,KillSwitchEngaged,DailyTargetReached",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Kill-switch activations (24h)",
+      "description": "Count of risk.killswitch.activated events. Edge-triggered, so each value is one false→true transition (Property 8).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"risk.killswitch.activated\"} [$__range]))",
+          "legendFormat": "killswitch",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 1}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "background"}
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Profit target reached (24h)",
+      "description": "Count of risk.target.reached events — emitted exactly once on the first crossing of the upper profit target band (R32.3, Property 8).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 6, "w": 8, "x": 8, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=\"risk.target.reached\"} [$__range]))",
+          "legendFormat": "target reached",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short"},
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value"}
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Cooldown engagements (24h)",
+      "description": "Count of risk.cooldown.<sym> engage transitions per symbol (R5.8). Slippage-cooldown is the only reason the Risk_Engine sets today.",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 6, "w": 8, "x": 16, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({job=~\"risk.cooldown\\\\..*\"} [$__range]))",
+          "legendFormat": "cooldown",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short"},
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value"}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Risk rejections by reason (rate / minute)",
+      "description": "Count of risk.decision.rejected events broken out by `reason` field, filtered by the $component template variable (R5.2-R5.11, R31.1).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 6},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (reason) (count_over_time({job=\"risk.decision.rejected\"} | json | reason=~`$component` [1m]))",
+          "legendFormat": "{{reason}}",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 10, "stacking": {"mode": "normal", "group": "A"}}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Risk anomaly counter by kind",
+      "description": "rate(hedge_risk_anomaly_total{kind=~\"$component\"}[1m]) — volatility-block, broker-latency-block, slippage spikes (R5.10, R5.11).",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (kind) (rate(hedge_risk_anomaly_total{kind=~\"$component\"}[1m]))",
+          "legendFormat": "{{kind}}",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Slippage observed (basis points) by symbol",
+      "description": "histogram_quantile(0.95, hedge_slippage_bps_bucket) per symbol — feeds the slippage cooldown gate (R5.8).",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (symbol, le) (rate(hedge_slippage_bps_bucket[5m])))",
+          "legendFormat": "{{symbol}} p95",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "bp", "custom": {"lineWidth": 2, "fillOpacity": 5}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    }
+  ],
+  "annotations": {
+    "list": [
+      {
+        "name": "Kill-switch activations",
+        "datasource": {"type": "loki", "uid": "hedge-loki"},
+        "enable": true,
+        "iconColor": "red",
+        "expr": "{job=\"risk.killswitch.activated\"}",
+        "hide": false,
+        "target": {"matchers": [{"name": "job", "value": "risk.killswitch.activated"}]}
+      }
+    ]
+  },
+  "links": []
+}

@@ -13,7 +13,7 @@ export default defineConfig({
     proxy: {
       // ws://.../market, ws://.../orderflow, ... see design § WebSocket Channels.
       "/ws": {
-        target: "ws://hedge-ui-gateway:8080",
+        target: "ws://127.0.0.1:8088",
         ws: true,
         changeOrigin: true,
       },

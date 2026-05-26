@@ -68,7 +68,7 @@ impl From<Ulid> for CorrelationId {
 /// resolved once at startup and afterwards every Hot_Path event carries only
 /// this u32 — keeping FlatBuffers payloads cache-friendly.
 #[repr(transparent)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct SymbolId(pub u32);
 
 impl SymbolId {

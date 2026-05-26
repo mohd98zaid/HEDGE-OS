@@ -65,7 +65,7 @@ async fn main() -> Result<()> {
             path = %cfg_path.display(),
             "config not found at path; using workspace defaults",
         );
-        load_default().context("load default config")?
+        load_default()
     };
 
     // NATS connect. If `HEDGE_NATS_CREDS` is set, use credentials-based

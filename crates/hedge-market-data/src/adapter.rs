@@ -141,7 +141,7 @@ impl<P: MarketDataProtocol> LiveWsAdapter<P> {
     /// caller (typically the engine startup path) chooses whether to
     /// retry or fail closed. After construction, transient drops are
     /// handled internally by [`reconnect`](Self::reconnect).
-    #[instrument(level = "info", skip(nats, protocol), fields(source = %source, url = %url))]
+    #[instrument(level = "info", skip(nats, protocol, source, url))]
     pub async fn connect(
         nats: &NatsClient,
         source: impl Into<String>,
@@ -150,6 +150,7 @@ impl<P: MarketDataProtocol> LiveWsAdapter<P> {
     ) -> Result<Self, MarketDataError> {
         let source = source.into();
         let url = url.into();
+        tracing::info!(%source, %url, "connecting market-data adapter");
 
         let subject: Subject<ConnectionEvent> = subjects::md_connection(&source);
         let publisher = nats.publisher(subject, JsonCodec::<ConnectionEvent>::new());

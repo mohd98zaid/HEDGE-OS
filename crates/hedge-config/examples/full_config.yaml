@@ -79,3 +79,9 @@ warm_cache:
   trade_confidence_lru_size: 8192   # design § Hot_Path Architecture (WarmCache)
   staleness_window_ms: 5000         # 5 s — Warm_AI_Pipeline ranking p95 plus headroom
   nats_url: "nats://127.0.0.1:4222"
+
+replay:
+  segment_dir: "./replay"             # design § Components § Replay_Engine
+  max_segment_bytes: 1073741824       # 1 GiB rotation
+  default_speed: x1                   # alternatives: x10, max
+  rng_seed: 12648430                  # 0x00C0_FFEE — deterministic Player seed

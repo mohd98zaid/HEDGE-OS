@@ -1,0 +1,4 @@
+[2m2026-05-26T17:08:49.459867Z[0m [32m INFO[0m [2mhedge_ui_gateway[0m[2m:[0m ui-gateway tracing initialised
+[2m2026-05-26T17:08:49.461860Z[0m [32m INFO[0m [2mhedge_ui_gateway[0m[2m:[0m ui-gateway starting [3mui_high_vol_threshold[0m[2m=[0m0.05000000074505806 [3mshadow_components[0m[2m=[0m[]
+[2m2026-05-26T17:08:49.463508Z[0m [34mDEBUG[0m [1mconnect[0m[1m{[0m[3mnats.url[0m[2m=[0mnats://127.0.0.1:4222[1m}[0m[2m:[0m [2masync_nats[0m[2m:[0m retry on initial connect failure is disabled
+[2m2026-05-26T17:08:49.466680Z[0m [34mDEBUG[0m [1mconnect[0m[1m{[0m[3mnats.url[0m[2m=[0mnats://127.0.0.1:4222[1m}[0m[2m:[0m [2masync_nats::connector[0m[2m:[0m connecting

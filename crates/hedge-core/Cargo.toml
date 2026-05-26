@@ -23,7 +23,13 @@ alloc-tracking = ["dep:stats_alloc"]
 [dependencies]
 crossbeam = { workspace = true }
 arrayvec = { workspace = true }
-smallvec = { workspace = true }
+# `const_generics` enables the `SmallVec<[T; N]>` const-generic API the
+# `BoundedEvents<T, const N: usize>` wrapper in `payload.rs` relies on.
+# Without it the crate compiles only when some other workspace member
+# transitively activates the feature (e.g. `tracing-subscriber`). The
+# alloc-benchmark CI job (.github/workflows/nightly.yml) builds this
+# crate in isolation, so we declare the feature here explicitly.
+smallvec = { workspace = true, features = ["const_generics"] }
 quanta = { workspace = true }
 ulid = { workspace = true }
 thiserror = { workspace = true }

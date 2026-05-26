@@ -419,6 +419,7 @@ pub const fn broker_id_token(broker: BrokerId) -> &'static str {
         BrokerId::Dhan => "dhan",
         BrokerId::Shoonya => "shoonya",
         BrokerId::AngelOne => "angel_one",
+        BrokerId::Upstox => "upstox",
         BrokerId::Simulated => "simulated",
     }
 }
@@ -552,6 +553,7 @@ mod tests {
         assert_eq!(broker_id_token(BrokerId::Dhan), "dhan");
         assert_eq!(broker_id_token(BrokerId::Shoonya), "shoonya");
         assert_eq!(broker_id_token(BrokerId::AngelOne), "angel_one");
+        assert_eq!(broker_id_token(BrokerId::Upstox), "upstox");
         assert_eq!(broker_id_token(BrokerId::Simulated), "simulated");
     }
 

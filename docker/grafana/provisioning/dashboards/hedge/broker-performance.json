@@ -1,0 +1,152 @@
+{
+  "uid": "hedge-broker-performance",
+  "title": "Broker Performance",
+  "description": "Per-broker latency p95, error rate, and failover count (R7.4, R6.5). Source: hedge_broker_latency_ns{broker} histogram and exec.broker.failover events on Loki.",
+  "tags": ["hedge", "broker", "execution"],
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": false,
+  "graphTooltip": 1,
+  "timezone": "Asia/Kolkata",
+  "time": {"from": "now-6h", "to": "now"},
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "broker",
+        "label": "Broker",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+        "query": {"query": "label_values(hedge_broker_latency_ns_bucket, broker)", "refId": "broker"},
+        "regex": "",
+        "includeAll": true,
+        "multi": true,
+        "allValue": ".*",
+        "current": {"text": "All", "value": "$__all"},
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "symbol",
+        "label": "Symbol",
+        "type": "textbox",
+        "current": {"text": "", "value": ""},
+        "query": ""
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Broker submit p95 (ns) by broker",
+      "description": "histogram_quantile(0.95, hedge_broker_latency_ns_bucket{broker=~\"$broker\"}) — round-trip submit latency.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (broker, le) (rate(hedge_broker_latency_ns_bucket{broker=~\"$broker\"}[1m])))",
+          "legendFormat": "{{broker}} p95",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ns", "custom": {"lineWidth": 2, "fillOpacity": 5}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Broker submit p99 (ns) by broker",
+      "description": "histogram_quantile(0.99, hedge_broker_latency_ns_bucket{broker=~\"$broker\"}) — tail latency view.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.99, sum by (broker, le) (rate(hedge_broker_latency_ns_bucket{broker=~\"$broker\"}[1m])))",
+          "legendFormat": "{{broker}} p99",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ns", "custom": {"lineWidth": 2, "fillOpacity": 5}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Broker error rate (errors / minute)",
+      "description": "Count of obs.error.exec.broker.* events per minute by broker, surfaced through Loki structured logs.",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 9},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (broker) (count_over_time({job=~\"obs.error.exec\"} | json | broker=~`$broker` [1m]))",
+          "legendFormat": "{{broker}}",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Broker failover events (rate / minute)",
+      "description": "exec.broker.failover events per minute. Each event records the active→backup atomic swap (R6.5).",
+      "datasource": {"type": "loki", "uid": "hedge-loki"},
+      "editable": false,
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 9},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (from, to) (count_over_time({job=\"exec.broker.failover\"} | json [1m]))",
+          "legendFormat": "{{from}} → {{to}}",
+          "datasource": {"type": "loki", "uid": "hedge-loki"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "custom": {"lineWidth": 2, "fillOpacity": 10}},
+        "overrides": []
+      },
+      "options": {"legend": {"displayMode": "table", "placement": "bottom"}, "tooltip": {"mode": "multi"}}
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Broker submit calls (last 5m)",
+      "description": "Total broker submit calls per broker over the last five minutes — sanity counter that the per-broker series exists.",
+      "datasource": {"type": "prometheus", "uid": "hedge-prometheus"},
+      "editable": false,
+      "gridPos": {"h": 6, "w": 24, "x": 0, "y": 18},
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (broker) (increase(hedge_broker_latency_ns_count{broker=~\"$broker\"}[5m]))",
+          "legendFormat": "{{broker}}",
+          "datasource": {"type": "prometheus", "uid": "hedge-prometheus"}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "short"},
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "fields": "", "values": false}, "colorMode": "value"}
+    }
+  ],
+  "annotations": {"list": []},
+  "links": []
+}

@@ -8,16 +8,26 @@
 //! The decode path mirrors the wire layout produced by
 //! `hedge_features::engine::encode` (FlatBuffers placeholder shape:
 //! every field in declaration order, little-endian, no padding).
+//!
+//! The binary also spawns a `ops.warmode.*` subscriber task that flips
+//! the engine's `war_mode` flag plus `war_mode_min_confidence` floor on
+//! every transition (R26.2, R26.3). The library-side gating is
+//! implemented by [`hedge_signals::gating::check_war_mode`].
 
 use std::env;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use hedge_bus::{FlatBuffersCodec, NatsClient, RawBytes, Subject};
+use hedge_bus::{
+    FlatBuffersCodec, JsonCodec, NatsClient, RawBytes, Subject, OPS_WARMODE_END,
+    OPS_WARMODE_START,
+};
 use hedge_config::{load_default, load_from_path};
 use hedge_schemas::FeatureSnapshot;
 use hedge_signals::SignalEngine;
 use redis::aio::ConnectionManager;
+use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
 const DEFAULT_NATS_URL: &str = "nats://127.0.0.1:4222";
@@ -44,7 +54,7 @@ async fn main() -> Result<()> {
         load_from_path(&cfg_path).context("load config from disk")?
     } else {
         warn!(path = %cfg_path.display(), "config not found at path; using workspace defaults");
-        load_default().context("load default config")?
+        load_default()
     };
 
     // NATS.
@@ -82,6 +92,24 @@ async fn main() -> Result<()> {
         Some(mgr) => SignalEngine::new_default(nats.clone()).with_redis(mgr),
         None => SignalEngine::new_default(nats.clone()),
     };
+    let engine = Arc::new(engine);
+
+    // Spawn the `ops.warmode.*` subscriber task that toggles the
+    // engine's `war_mode` and `war_mode_min_confidence` config (R26.2,
+    // R26.3). The task uses the typed `JsonCodec<WarModePayload>` over
+    // the well-known `OPS_WARMODE_START` / `OPS_WARMODE_END` subjects
+    // from `hedge-bus`. Errors are logged at `warn` and do not abort
+    // the engine — the gate stays at its last-known state until the
+    // next event lands.
+    {
+        let engine = Arc::clone(&engine);
+        let nats = nats.clone();
+        tokio::spawn(async move {
+            if let Err(err) = run_warmode_subscriber(engine, nats).await {
+                warn!(error = %err, "ops.warmode subscriber terminated");
+            }
+        });
+    }
 
     // Subscribe to `feat.update.*` (wildcard subscription).
     let subject: Subject<RawBytes> = Subject::new("feat.update.*");
@@ -113,6 +141,89 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+/// `ops.warmode.<phase>` payload mirror for the JSON wire form
+/// (`hedge-schemas/json_schemas/ops_warmode.schema.json`). Defined
+/// locally to avoid pulling `hedge-session` (the producer crate) into
+/// the Signal_Engine's dependency closure — the wire schema is the
+/// single source of truth and the field names match `WarModeEvent` in
+/// `hedge-session::event`.
+///
+/// `Serialize` is required by `JsonCodec<T>` even on the receive path;
+/// implementing it does not change the wire form because the producer is
+/// `hedge-session`, not this crate.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct WarModePayload {
+    /// Phase discriminant: `"start"` or `"end"`.
+    phase: String,
+    /// Confidence floor applied while War_Mode is active.
+    min_confidence: f32,
+    /// Scan-frequency multiplier (informational; the gate logic only
+    /// uses `min_confidence`, the multiplier is consumed by
+    /// `hedge-features` and `hedge-orderflow`).
+    #[allow(dead_code)]
+    scan_multiplier: f32,
+}
+
+/// `ops.warmode.*` subscriber. Subscribes to both the start and end
+/// subjects and toggles the engine's `war_mode` flag plus
+/// `war_mode_min_confidence` (R26.2, R26.3). The task uses
+/// `tokio::select!` over the two subscriptions so a stray broker drop
+/// on one subject does not silently stop the other.
+async fn run_warmode_subscriber(engine: Arc<SignalEngine>, nats: NatsClient) -> Result<()> {
+    let start_subject: Subject<WarModePayload> = Subject::new(OPS_WARMODE_START);
+    let end_subject: Subject<WarModePayload> = Subject::new(OPS_WARMODE_END);
+    let mut start_sub = nats
+        .subscriber(start_subject, JsonCodec::<WarModePayload>::new())
+        .await
+        .context("subscribe ops.warmode.start")?;
+    let mut end_sub = nats
+        .subscriber(end_subject, JsonCodec::<WarModePayload>::new())
+        .await
+        .context("subscribe ops.warmode.end")?;
+
+    info!("hedge-signals ops.warmode subscriber armed");
+
+    loop {
+        tokio::select! {
+            ev = start_sub.recv() => match ev {
+                Ok(payload) => {
+                    if payload.phase != "start" {
+                        warn!(phase = %payload.phase, "unexpected phase on ops.warmode.start");
+                    }
+                    let floor = payload.min_confidence;
+                    engine.update_config(|cfg| {
+                        cfg.war_mode = true;
+                        cfg.war_mode_min_confidence = floor;
+                    });
+                    info!(
+                        min_confidence = floor,
+                        "war_mode activated; signals below floor will be suppressed",
+                    );
+                }
+                Err(err) => {
+                    warn!(error = %err, "ops.warmode.start recv failed");
+                    return Err(err.into());
+                }
+            },
+            ev = end_sub.recv() => match ev {
+                Ok(payload) => {
+                    if payload.phase != "end" {
+                        warn!(phase = %payload.phase, "unexpected phase on ops.warmode.end");
+                    }
+                    engine.update_config(|cfg| {
+                        cfg.war_mode = false;
+                    });
+                    info!("war_mode deactivated");
+                }
+                Err(err) => {
+                    warn!(error = %err, "ops.warmode.end recv failed");
+                    return Err(err.into());
+                }
+            },
+        }
+    }
 }
 
 /// Decode a `FeatureSnapshot` from the wire layout produced by

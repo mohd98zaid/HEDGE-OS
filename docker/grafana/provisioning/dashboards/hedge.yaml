@@ -1,0 +1,24 @@
+# Grafana dashboard provider for PROJECT HEDGE (task 45.1, R27.3).
+#
+# Loaded at Grafana startup via the standard provisioning mount declared
+# in `docker-compose.yml`:
+#
+#   ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+#
+# Every JSON file under `dashboards/hedge/` is then visible to operators
+# under the `Hedge` folder. Dashboards are version-controlled and not
+# editable from the UI (`disableDeletion: true`, `editable: false`); any
+# change must land as a commit on the JSON files in this repository.
+apiVersion: 1
+providers:
+  - name: 'hedge'
+    orgId: 1
+    folder: 'Hedge'
+    type: file
+    disableDeletion: true
+    editable: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /etc/grafana/provisioning/dashboards/hedge
+      foldersFromFilesStructure: false

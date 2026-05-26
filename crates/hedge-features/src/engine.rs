@@ -39,6 +39,7 @@ use crate::incremental::{
     volatility, vwap,
 };
 use crate::state::FeatureState;
+use crate::war_mode::WarModeProfile;
 
 /// p99 budget for the feature-extraction stage in nanoseconds (R28.2).
 pub const FEATURE_EXTRACTION_BUDGET_NS: u64 = 3_000_000;
@@ -167,6 +168,10 @@ pub struct FeatureExtractionEngine<E: LatencyEmitter + 'static> {
     nats: NatsClient,
     states: Arc<DashMap<SymbolId, Mutex<FeatureState>>>,
     latency_emitter: Arc<E>,
+    /// Runtime War_Mode profile. Updated by the engine binary's
+    /// `ops.warmode.*` subscriber and surfaced to schedulers / priority
+    /// engines via [`Self::war_mode`] (R26.2).
+    war_mode: Arc<WarModeProfile>,
 }
 
 impl<E: LatencyEmitter + 'static> Clone for FeatureExtractionEngine<E> {
@@ -175,6 +180,7 @@ impl<E: LatencyEmitter + 'static> Clone for FeatureExtractionEngine<E> {
             nats: self.nats.clone(),
             states: Arc::clone(&self.states),
             latency_emitter: Arc::clone(&self.latency_emitter),
+            war_mode: Arc::clone(&self.war_mode),
         }
     }
 }
@@ -186,6 +192,7 @@ impl<E: LatencyEmitter + 'static> FeatureExtractionEngine<E> {
             nats,
             states: Arc::new(DashMap::new()),
             latency_emitter,
+            war_mode: Arc::new(WarModeProfile::inactive()),
         }
     }
 
@@ -200,6 +207,16 @@ impl<E: LatencyEmitter + 'static> FeatureExtractionEngine<E> {
     #[inline]
     pub fn states(&self) -> &Arc<DashMap<SymbolId, Mutex<FeatureState>>> {
         &self.states
+    }
+
+    /// Shared handle to the runtime War_Mode profile. The engine binary
+    /// drives the [`WarModeProfile`] from its `ops.warmode.*` subscriber
+    /// (`hedge-session::WarModeController` is the producer); this
+    /// accessor lets schedulers and priority engines read the current
+    /// scan multiplier without re-resolving an Arc on every tick.
+    #[inline]
+    pub fn war_mode(&self) -> &Arc<WarModeProfile> {
+        &self.war_mode
     }
 
     /// Synchronous compute step. Locks the per-symbol mutex, runs every
