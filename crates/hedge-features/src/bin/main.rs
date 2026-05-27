@@ -93,7 +93,21 @@ async fn main() -> Result<()> {
                         }
                     }
                     None => {
-                        warn!(len = bytes.len(), "discarded malformed tick payload");
+                        // The cockpit-shaped JSON tick payloads published
+                        // by `upstox-feed` arrive on the same subject. They
+                        // start with `{` and are not the engine's binary
+                        // tick layout — silently skip those instead of
+                        // logging a warning per tick. Real binary
+                        // corruption (anything else that fails to decode)
+                        // still surfaces at debug level.
+                        if bytes.first() == Some(&b'{') {
+                            // expected JSON-shaped UI payload; ignore.
+                        } else {
+                            tracing::debug!(
+                                len = bytes.len(),
+                                "discarded malformed tick payload"
+                            );
+                        }
                     }
                 }
             }
