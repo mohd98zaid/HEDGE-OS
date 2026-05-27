@@ -41,7 +41,6 @@ use std::env;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::{Context, Result};
-use chrono::Utc;
 use serde_json::{json, Value};
 use tokio::time::{sleep, Instant};
 use tracing::{debug, error, info, warn};
@@ -458,27 +457,32 @@ async fn publish_tick(nats: &NatsClient, instrument_key: &str, item: &Value) {
         .or_else(|| item.get("ltp"))
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
-    let close = item
-        .get("close_price")
-        .and_then(|v| v.as_f64())
-        .or_else(|| item.pointer("/ohlc/close").and_then(|v| v.as_f64()))
-        .unwrap_or(0.0);
     let volume = item.get("volume").and_then(|v| v.as_u64());
 
-    let now_ms = SystemTime::now()
+    // Convert rupees → paise (the cockpit's Tick schema is integer paise).
+    let ltp_paise = (ltp * 100.0).round() as i64;
+
+    // The LTP-only endpoint doesn't ship bid/ask. Use ltp as a placeholder
+    // for both sides; the slower /quotes poll will overwrite with real
+    // depth on `md.book.<symbol>` and the reducer fills bid/ask from there.
+    let bid_paise = ltp_paise;
+    let ask_paise = ltp_paise;
+
+    let ts_ns = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
+        .map(|d| d.as_nanos() as i64)
         .unwrap_or(0);
 
+    // Cockpit MarketEvent schema: { kind: "tick", data: Tick }
     let payload = json!({
-        "instrument": instrument_key,
-        "symbol": symbol,
-        "ltp": ltp,
-        "close_price": close,
-        "volume": volume,
-        "exchange_ts": now_ms,
-        "received_ts": now_ms,
-        "source": SOURCE,
+        "kind": "tick",
+        "data": {
+            "symbol": symbol,
+            "ltp_paise": ltp_paise,
+            "bid_paise": bid_paise,
+            "ask_paise": ask_paise,
+            "ts_recv_ns": ts_ns,
+        }
     });
 
     let bytes = match serde_json::to_vec(&payload) {
@@ -509,22 +513,29 @@ async fn publish_book(nats: &NatsClient, instrument_key: &str, item: &Value) {
     let subject_symbol = format!("md.book.{}", symbol);
     let subject_isin = format!("md.book.{}", instrument_key.replace('|', "."));
 
-    let now_ms = SystemTime::now()
+    // Pull best bid / best ask out of the L5 depth ladder.
+    let buys = item.pointer("/depth/buy").and_then(|v| v.as_array());
+    let sells = item.pointer("/depth/sell").and_then(|v| v.as_array());
+
+    let (bid_price, bid_qty) = best_level(buys);
+    let (ask_price, ask_qty) = best_level(sells);
+
+    let ts_ns = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as u64)
+        .map(|d| d.as_nanos() as i64)
         .unwrap_or(0);
 
+    // Cockpit MarketEvent schema: { kind: "book", data: BookTopOfBook }
     let payload = json!({
-        "instrument": instrument_key,
-        "symbol": symbol,
-        "depth": item.get("depth").cloned().unwrap_or(Value::Null),
-        "ohlc": item.get("ohlc").cloned().unwrap_or(Value::Null),
-        "last_price": item.get("last_price").cloned().unwrap_or(Value::Null),
-        "volume": item.get("volume").cloned().unwrap_or(Value::Null),
-        "total_buy_quantity": item.get("total_buy_quantity").cloned().unwrap_or(Value::Null),
-        "total_sell_quantity": item.get("total_sell_quantity").cloned().unwrap_or(Value::Null),
-        "exchange_ts": now_ms,
-        "source": SOURCE,
+        "kind": "book",
+        "data": {
+            "symbol": symbol,
+            "bid_paise": (bid_price * 100.0).round() as i64,
+            "bid_qty": bid_qty,
+            "ask_paise": (ask_price * 100.0).round() as i64,
+            "ask_qty": ask_qty,
+            "ts_ns": ts_ns,
+        }
     });
 
     let bytes = match serde_json::to_vec(&payload) {
@@ -543,13 +554,29 @@ async fn publish_book(nats: &NatsClient, instrument_key: &str, item: &Value) {
     }
 }
 
+/// Extract `(price, qty)` from the first level of a depth ladder.
+fn best_level(levels: Option<&Vec<Value>>) -> (f64, u64) {
+    let level = match levels.and_then(|l| l.first()) {
+        Some(l) => l,
+        None => return (0.0, 0),
+    };
+    let price = level.get("price").and_then(|v| v.as_f64()).unwrap_or(0.0);
+    let qty = level.get("quantity").and_then(|v| v.as_u64()).unwrap_or(0);
+    (price, qty)
+}
+
 async fn publish_connected(nats: &NatsClient) -> Result<()> {
+    let ts_ns = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as i64)
+        .unwrap_or(0);
     let payload = json!({
-        "source": SOURCE,
-        "status": "reconnected",
-        "reason": null,
-        "attempt": 0,
-        "at": Utc::now().to_rfc3339(),
+        "kind": "connection",
+        "data": {
+            "source": SOURCE,
+            "status": "ok",
+            "ts_ns": ts_ns,
+        }
     });
     let bytes = serde_json::to_vec(&payload)?;
     nats.raw()
@@ -559,12 +586,20 @@ async fn publish_connected(nats: &NatsClient) -> Result<()> {
 }
 
 async fn publish_disconnected(nats: &NatsClient, reason: &str, attempt: u32) -> Result<()> {
+    let ts_ns = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos() as i64)
+        .unwrap_or(0);
+    let status = if attempt > 5 { "down" } else { "degraded" };
     let payload = json!({
-        "source": SOURCE,
-        "status": "disconnected",
+        "kind": "connection",
+        "data": {
+            "source": SOURCE,
+            "status": status,
+            "ts_ns": ts_ns,
+        },
         "reason": reason,
         "attempt": attempt,
-        "at": Utc::now().to_rfc3339(),
     });
     let bytes = serde_json::to_vec(&payload)?;
     nats.raw()
