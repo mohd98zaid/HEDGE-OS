@@ -24,7 +24,7 @@ export function OrderflowHeatmap(): JSX.Element {
       critical
       status={<span>{symbols.length} symbols</span>}
     >
-      <div className="space-y-3">
+      <div className="space-y-3 max-h-72 overflow-y-auto">
         {symbols.map((sym) => {
           const hm = heatmaps[sym];
           const total = hm.cells.reduce(
