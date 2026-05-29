@@ -3,12 +3,15 @@
 // The cockpit connects to the `ui-gateway` Rust bridge over a single
 // WebSocket. Channels are multiplexed via a topic-subscription protocol
 // (see design.md § WebSocket Channels (UI Gateway), R20.2): every
-// server frame is a JSON envelope `{ channel, payload, ... }`; the
+// server frame is a JSON envelope `{type, channel, payload, ...}`; the
 // client subscribes/unsubscribes per channel and publishes trader
 // intents on `/control`.
 //
-// This module is **the only** outbound dependency for live data — the
-// React panels never read from NATS or Redis directly (R20.2).
+// Wire format is governed by `crates/hedge-ui-gateway/src/protocol.rs`. The
+// historical cockpit shape used `{op:"subscribe",...,symbols:[...]}` which the
+// Rust side parses with `#[serde(tag="type")]` and reads from `topics` —
+// every old frame failed to deserialise, so subscriptions never registered.
+// That bug is the root cause the live-cockpit-data spec fixes here.
 
 import type {
   ChannelId,
@@ -16,9 +19,11 @@ import type {
   ServerEnvelope,
   TraderIntent,
 } from "../types";
+import { intentToMessage } from "../types/envelope";
 
 export type ChannelHandler<T = unknown> = (envelope: ServerEnvelope<T>) => void;
 export type StateHandler = (state: GatewayState) => void;
+export type ModeHandler = (high_volatility: boolean) => void;
 
 export type GatewayState =
   | "connecting"
@@ -31,7 +36,9 @@ export interface GatewayClientOptions {
   /** Initial reconnect delay; doubles up to maxReconnectMs. */
   initialReconnectMs?: number;
   maxReconnectMs?: number;
-  /** Symbols filter forwarded with /market + /orderflow subscribe ops. */
+  /** Trading-symbol filter forwarded as `topics` on /market + /orderflow.
+   *  MUST be trading symbols (e.g. `RELIANCE`), not ISIN keys. Pass an
+   *  empty list or `undefined` to receive every published symbol. */
   symbols?: string[];
 }
 
@@ -51,6 +58,7 @@ export class GatewayClient {
   private readonly maxReconnectMs: number;
   private readonly handlers = new Map<ChannelId, Set<ChannelHandler>>();
   private readonly stateHandlers = new Set<StateHandler>();
+  private readonly modeHandlers = new Set<ModeHandler>();
   private readonly subscribed = new Set<ChannelId>();
   private symbols: string[] | undefined;
 
@@ -111,7 +119,7 @@ export class GatewayClient {
       if (live.size === 0) {
         this.handlers.delete(channel);
         this.subscribed.delete(channel);
-        this.send({ op: "unsubscribe", channel });
+        this.send({ type: "unsubscribe", channel });
       }
     };
   }
@@ -125,12 +133,25 @@ export class GatewayClient {
     };
   }
 
-  /** Push a trader intent onto the `/control` channel (R20.6/7/8). */
-  sendIntent(intent: TraderIntent): boolean {
-    return this.send({ op: "intent", channel: "control", payload: intent });
+  /** Subscribe to gateway `mode` (high-volatility) frames. */
+  onMode(handler: ModeHandler): () => void {
+    this.modeHandlers.add(handler);
+    return () => {
+      this.modeHandlers.delete(handler);
+    };
   }
 
-  /** Replace symbol filter on /market and /orderflow channels. */
+  /** Push a trader intent onto the `/control` channel (R20.6/7/8). */
+  sendIntent(intent: TraderIntent): boolean {
+    return this.send(intentToMessage(intent));
+  }
+
+  /** Replace symbol filter on /market and /orderflow channels.
+   *
+   *  Pass trading symbols (`RELIANCE`, `INFY`), NOT ISIN-form instrument
+   *  keys (`NSE_EQ|INE002A01018`). The gateway's per-connection topic filter
+   *  matches against the last segment of the NATS subject (`md.tick.<sym>`),
+   *  which the upstox-feed publishes as the trading symbol. */
   setSymbols(symbols: string[]): void {
     this.symbols = symbols;
     if (this.subscribed.has("market")) this.sendSubscribe("market");
@@ -198,23 +219,58 @@ export class GatewayClient {
       console.warn("[ws] non-JSON frame ignored", raw);
       return;
     }
-    if (!env || typeof env.channel !== "string") return;
-    const bucket = this.handlers.get(env.channel);
-    if (!bucket) return;
-    for (const fn of bucket) {
-      try {
-        fn(env);
-      } catch (err) {
-        // eslint-disable-next-line no-console
-        console.error("[ws] handler threw on channel", env.channel, err);
+    if (!env || typeof env !== "object") return;
+
+    // Route by `type`. Older frames without a type field are treated as
+    // events for backwards compatibility with the test fixture set.
+    const t = (env as { type?: string }).type ?? "event";
+    switch (t) {
+      case "event": {
+        if (typeof (env as ServerEnvelope).channel !== "string") return;
+        const bucket = this.handlers.get((env as ServerEnvelope).channel);
+        if (!bucket) return;
+        for (const fn of bucket) {
+          try {
+            fn(env as ServerEnvelope);
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error("[ws] handler threw on channel", (env as ServerEnvelope).channel, err);
+          }
+        }
+        return;
       }
+      case "mode": {
+        const hv = (env as unknown as { high_volatility?: boolean }).high_volatility === true;
+        for (const fn of this.modeHandlers) fn(hv);
+        return;
+      }
+      case "ack":
+      case "pong":
+        return; // silent
+      case "error": {
+        const e = env as unknown as { code?: string; message?: string };
+        // eslint-disable-next-line no-console
+        console.warn("[ws] gateway error", e.code ?? "unknown", e.message ?? "");
+        return;
+      }
+      default:
+        // unknown frame type; ignore.
+        return;
     }
   }
 
   private sendSubscribe(channel: ChannelId): void {
-    const symbols =
-      channel === "market" || channel === "orderflow" ? this.symbols : undefined;
-    this.send({ op: "subscribe", channel, ...(symbols ? { symbols } : {}) });
+    const useTopics =
+      (channel === "market" || channel === "orderflow") &&
+      this.symbols &&
+      this.symbols.length > 0
+        ? this.symbols
+        : undefined;
+    this.send({
+      type: "subscribe",
+      channel,
+      ...(useTopics ? { topics: useTopics } : {}),
+    });
   }
 
   private send(msg: ClientMessage): boolean {

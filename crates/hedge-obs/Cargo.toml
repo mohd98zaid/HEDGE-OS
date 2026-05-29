@@ -39,6 +39,7 @@ parking_lot = { workspace = true }
 once_cell = { workspace = true }
 bytes = { workspace = true }
 quanta = { workspace = true }
+chrono = { workspace = true }
 
 # Optional async HTTP client used only by `loki_shipper.rs` when the
 # `loki-shipper` feature is enabled. `default-features = false` strips the

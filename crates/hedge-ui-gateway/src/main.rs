@@ -144,7 +144,11 @@ async fn spawn_nats_to_broadcast(
                         ts_ns,
                     };
                     if tx.send(ev).is_err() {
-                        warn!("event_tx has no receivers");
+                        // No cockpit connected yet (or just disconnected) — this is
+                        // normal at startup before any browser opens the WS, and
+                        // again briefly during reconnect. Stay at trace so the
+                        // operator log isn't drowned during the first ~seconds.
+                        tracing::trace!("event_tx has no receivers");
                     }
                 }
                 warn!(subject = %pattern_owned, "nats fan-out subscriber stream ended");

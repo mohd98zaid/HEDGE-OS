@@ -141,9 +141,9 @@ echo        [g] Position Engine...
 start "HEDGE-position" cmd /k target\release\hedge-position.exe
 timeout /t 1 /nobreak >nul
 
-echo        [h] Replay Engine...
-start "HEDGE-replay" cmd /k target\release\hedge-replay.exe
-timeout /t 1 /nobreak >nul
+REM hedge-replay is an inspector CLI, not a daemon.
+REM   Usage: target\release\hedge-replay.exe list | info <id> | dump <id>
+REM Do NOT launch it from start.bat.
 
 echo        Hot_Path pipeline started.
 echo.
@@ -183,9 +183,9 @@ echo.
 echo   Services:
 echo     Session Controller   : running (09:15-15:30 IST gate)
 echo     Supervisor           : running (self-healing)
-echo     Replay Engine        : running (recording)
 echo     UI Gateway           : ws://localhost:8088
 echo     Upstox Feed          : REST polling, 500ms LTP / 2s book
+echo     (Replay is an inspector CLI: hedge-replay.exe list ^| info ^| dump)
 echo.
 echo   Dashboards:
 echo     Cockpit UI           : http://localhost:5173
@@ -211,7 +211,6 @@ echo  Stopping all services...
 
 taskkill /fi "WINDOWTITLE eq HEDGE-UI*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-ui-gateway*" /f >nul 2>&1
-taskkill /fi "WINDOWTITLE eq HEDGE-replay*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-position*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-exec*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-risk*" /f >nul 2>&1

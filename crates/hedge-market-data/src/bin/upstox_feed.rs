@@ -570,7 +570,18 @@ async fn publish_connected(nats: &NatsClient) -> Result<()> {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos() as i64)
         .unwrap_or(0);
+    // Dual-shape payload: legacy flat fields for the supervisor's
+    // `MdConnectionEvent` decoder (source/status="reconnected"/attempt) AND
+    // cockpit-shaped {kind, data} discriminated-union fields. Both decoders
+    // can read this without conflict because the field names don't collide.
     let payload = json!({
+        // --- legacy flat shape (supervisor + adapter.rs ConnectionEvent) ---
+        "source": SOURCE,
+        "status": "reconnected",
+        "reason": Value::Null,
+        "attempt": 0u32,
+        "at": chrono::Utc::now().to_rfc3339(),
+        // --- cockpit MarketEvent shape ---
         "kind": "connection",
         "data": {
             "source": SOURCE,
@@ -590,16 +601,22 @@ async fn publish_disconnected(nats: &NatsClient, reason: &str, attempt: u32) -> 
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos() as i64)
         .unwrap_or(0);
-    let status = if attempt > 5 { "down" } else { "degraded" };
+    let cockpit_status = if attempt > 5 { "down" } else { "degraded" };
+    // Dual-shape payload (see publish_connected for rationale).
     let payload = json!({
+        // --- legacy flat shape (supervisor + adapter.rs ConnectionEvent) ---
+        "source": SOURCE,
+        "status": "disconnected",
+        "reason": reason,
+        "attempt": attempt,
+        "at": chrono::Utc::now().to_rfc3339(),
+        // --- cockpit MarketEvent shape ---
         "kind": "connection",
         "data": {
             "source": SOURCE,
-            "status": status,
+            "status": cockpit_status,
             "ts_ns": ts_ns,
-        },
-        "reason": reason,
-        "attempt": attempt,
+        }
     });
     let bytes = serde_json::to_vec(&payload)?;
     nats.raw()
