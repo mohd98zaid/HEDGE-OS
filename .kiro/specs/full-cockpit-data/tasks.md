@@ -143,13 +143,13 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 
 ### Warm_AI_Pipeline
 
-- [ ] C.7 Warm_AI ranking engine — `python -m hedge_warm_ai.ranking.engine` subscribes `sig.emitted`, calls Ollama, publishes `ai.rank.<correlation_id>` within 800ms — files: `python/hedge_warm_ai/src/hedge_warm_ai/ranking/engine.py` (existing — wire to NATS), `start.bat` — references: REQ-9.1, REQ-9.2, REQ-9.6
+- [x] C.7 Warm_AI ranking engine — `python -m hedge_warm_ai.ranking.engine` subscribes `sig.emitted`, calls Ollama, publishes `ai.rank.<correlation_id>` within 800ms — files: `python/hedge_warm_ai/src/hedge_warm_ai/ranking/engine.py` (existing — wire to NATS), `start.bat` — references: REQ-9.1, REQ-9.2, REQ-9.6
 
-- [ ] C.8 Warm_AI news engine — `python -m hedge_warm_ai.news.engine` publishes `ai.news.impact.<topic>` from configured fetchers — files: `python/hedge_warm_ai/src/hedge_warm_ai/news/engine.py`, `start.bat` — references: REQ-9.1, REQ-9.3
+- [x] C.8 Warm_AI news engine — `python -m hedge_warm_ai.news.engine` publishes `ai.news.impact.<topic>` from configured fetchers — files: `python/hedge_warm_ai/src/hedge_warm_ai/news/engine.py`, `start.bat` — references: REQ-9.1, REQ-9.3
 
-- [ ] C.9 Warm_AI regime engine — takes over `md.breadth.sector` + `md.breadth.volatility` from Demo_Synth — files: `python/hedge_warm_ai/src/hedge_warm_ai/regime/engine.py`, `start.bat` — references: REQ-9.1, REQ-9.4
+- [x] C.9 Warm_AI regime engine — takes over `md.breadth.sector` + `md.breadth.volatility` from Demo_Synth — files: `python/hedge_warm_ai/src/hedge_warm_ai/regime/engine.py`, `start.bat` — references: REQ-9.1, REQ-9.4
 
-- [ ] C.10 Warm_AI psych engine — new lightweight service; publishes `ai.psych.stability` ≥0.2Hz — files: `python/hedge_warm_ai/src/hedge_warm_ai/psych/engine.py` (new), `start.bat` — references: REQ-9.1, REQ-9.5
+- [x] C.10 Warm_AI psych engine — new lightweight service; publishes `ai.psych.stability` ≥0.2Hz — files: `python/hedge_warm_ai/src/hedge_warm_ai/psych/engine.py` (new), `start.bat` — references: REQ-9.1, REQ-9.5
 
 ### Upstox options-chain
 

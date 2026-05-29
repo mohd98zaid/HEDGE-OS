@@ -173,6 +173,54 @@ echo        Hot_Path pipeline started.
 echo.
 
 REM ============================================================
+REM  STEP 3.6: Warm_AI_Pipeline (Python microservices)
+REM ============================================================
+REM  Ranking, News, Regime, Psychology engines. They publish real
+REM  ai.rank / ai.news.impact / ai.psych / md.breadth output and the
+REM  demo-synth suppression registry backs off those subjects within
+REM  ~5s, so these panels switch from synthetic to real automatically.
+REM
+REM  Graceful degradation: each service runs even without Redis / Ollama
+REM  / ONNX weights (ranking uses neutral factors, news uses a lexicon
+REM  sentiment fallback). Set HEDGE_WARM_AI=off to disable.
+if not defined HEDGE_WARM_AI set "HEDGE_WARM_AI=on"
+if /i "%HEDGE_WARM_AI%"=="off" goto :skip_warm_ai
+if /i "%HEDGE_WARM_AI%"=="false" goto :skip_warm_ai
+if /i "%HEDGE_WARM_AI%"=="0" goto :skip_warm_ai
+
+REM Resolve a Python interpreter (prefer the venv if present).
+set "HEDGE_PY=python"
+if exist "python\hedge_warm_ai\.venv\Scripts\python.exe" set "HEDGE_PY=python\hedge_warm_ai\.venv\Scripts\python.exe"
+
+REM Ensure the package is importable even without an editable install by
+REM putting its src/ on PYTHONPATH (harmless when already installed).
+set "PYTHONPATH=%PROJECT_DIR%python\hedge_warm_ai\src;%PYTHONPATH%"
+
+echo  [3.6] Starting Warm_AI_Pipeline (Python)...
+echo        [j] AI Trade Ranking Engine (sig.emitted -^> ai.rank)...
+start "HEDGE-rank" cmd /k "%HEDGE_PY%" -m hedge_warm_ai.ranking.service
+timeout /t 1 /nobreak >nul
+
+echo        [k] News Intelligence Engine (-^> ai.news.impact)...
+start "HEDGE-news" cmd /k "%HEDGE_PY%" -m hedge_warm_ai.news.service
+timeout /t 1 /nobreak >nul
+
+echo        [l] Market Regime Engine (-^> ai.regime.changed + md.breadth)...
+start "HEDGE-regime" cmd /k "%HEDGE_PY%" -m hedge_warm_ai.regime.service
+timeout /t 1 /nobreak >nul
+
+echo        [m] Trader Psychology Engine (-^> ai.psych.stability)...
+start "HEDGE-psych" cmd /k "%HEDGE_PY%" -m hedge_warm_ai.psychology.service
+timeout /t 1 /nobreak >nul
+goto :warm_ai_done
+
+:skip_warm_ai
+echo  [3.6] Warm_AI_Pipeline skipped (HEDGE_WARM_AI=%HEDGE_WARM_AI%).
+
+:warm_ai_done
+echo.
+
+REM ============================================================
 REM  STEP 4: UI Gateway (needs NATS + Hot_Path publishing)
 REM ============================================================
 echo  [4/5] Starting UI Gateway...
@@ -210,6 +258,7 @@ echo     Supervisor           : running (self-healing)
 echo     UI Gateway           : ws://localhost:8088
 echo     Upstox Feed          : REST polling, 500ms LTP / 2s book
 echo     Demo Synth           : %HEDGE_DEMO_SYNTH% (set HEDGE_DEMO_SYNTH=off to disable)
+echo     Warm_AI Pipeline     : %HEDGE_WARM_AI% (rank/news/regime/psych; set HEDGE_WARM_AI=off to disable)
 echo     (Replay is an inspector CLI: hedge-replay.exe list ^| info ^| dump)
 echo.
 echo   Dashboards:
@@ -236,6 +285,10 @@ echo  Stopping all services...
 
 taskkill /fi "WINDOWTITLE eq HEDGE-UI*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-ui-gateway*" /f >nul 2>&1
+taskkill /fi "WINDOWTITLE eq HEDGE-psych*" /f >nul 2>&1
+taskkill /fi "WINDOWTITLE eq HEDGE-regime*" /f >nul 2>&1
+taskkill /fi "WINDOWTITLE eq HEDGE-news*" /f >nul 2>&1
+taskkill /fi "WINDOWTITLE eq HEDGE-rank*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-demo-synth*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-position*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-exec*" /f >nul 2>&1
