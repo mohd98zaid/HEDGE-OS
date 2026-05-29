@@ -1014,6 +1014,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "hedge-demo-synth"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "dashmap",
+ "futures",
+ "hedge-bus",
+ "hedge-config",
+ "hedge-obs",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "hedge-exec"
 version = "0.1.0"
 dependencies = [

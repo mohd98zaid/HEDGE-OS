@@ -145,6 +145,30 @@ REM hedge-replay is an inspector CLI, not a daemon.
 REM   Usage: target\release\hedge-replay.exe list | info <id> | dump <id>
 REM Do NOT launch it from start.bat.
 
+REM ============================================================
+REM  STEP 3.5: Demo Synth (deterministic dashboard filler)
+REM ============================================================
+REM  Defaults to ON so every panel populates outside trading hours.
+REM  Set HEDGE_DEMO_SYNTH=off in .env (or this shell) to disable.
+if not defined HEDGE_DEMO_SYNTH set "HEDGE_DEMO_SYNTH=on"
+if /i "%HEDGE_DEMO_SYNTH%"=="off" goto :skip_demo_synth
+if /i "%HEDGE_DEMO_SYNTH%"=="false" goto :skip_demo_synth
+if /i "%HEDGE_DEMO_SYNTH%"=="0" goto :skip_demo_synth
+
+if not exist "target\release\hedge-demo-synth.exe" (
+    echo  [INFO] Building hedge-demo-synth...
+    cargo build --release -p hedge-demo-synth --bin hedge-demo-synth >nul 2>&1
+)
+echo        [i] Demo Synth (HEDGE_DEMO_SYNTH=on)...
+start "HEDGE-demo-synth" cmd /k target\release\hedge-demo-synth.exe
+timeout /t 1 /nobreak >nul
+goto :demo_synth_done
+
+:skip_demo_synth
+echo        [i] Demo Synth skipped (HEDGE_DEMO_SYNTH=%HEDGE_DEMO_SYNTH%).
+
+:demo_synth_done
+
 echo        Hot_Path pipeline started.
 echo.
 
@@ -185,6 +209,7 @@ echo     Session Controller   : running (09:15-15:30 IST gate)
 echo     Supervisor           : running (self-healing)
 echo     UI Gateway           : ws://localhost:8088
 echo     Upstox Feed          : REST polling, 500ms LTP / 2s book
+echo     Demo Synth           : %HEDGE_DEMO_SYNTH% (set HEDGE_DEMO_SYNTH=off to disable)
 echo     (Replay is an inspector CLI: hedge-replay.exe list ^| info ^| dump)
 echo.
 echo   Dashboards:
@@ -211,6 +236,7 @@ echo  Stopping all services...
 
 taskkill /fi "WINDOWTITLE eq HEDGE-UI*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-ui-gateway*" /f >nul 2>&1
+taskkill /fi "WINDOWTITLE eq HEDGE-demo-synth*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-position*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-exec*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-risk*" /f >nul 2>&1

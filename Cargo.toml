@@ -34,6 +34,9 @@ members = [
 
     # UI bridge (only non-Hot_Path Rust crate)
     "crates/hedge-ui-gateway",
+
+    # Demo / dev tooling (non-Hot_Path)
+    "crates/hedge-demo-synth",
 ]
 
 [workspace.package]
