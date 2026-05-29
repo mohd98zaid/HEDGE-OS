@@ -1,4 +1,0 @@
-Error: nats connect nats://127.0.0.1:4222 failed
-
-Caused by:
-    nats connect failed: nats://127.0.0.1:4222: authorization violation: nats: authorization violation
