@@ -73,8 +73,11 @@ async fn main() -> Result<()> {
     let emitter = Arc::new(NoopEmitter);
     let engine = FeatureExtractionEngine::new(nats.clone(), emitter);
 
-    // Subscribe to `md.tick.*` (wildcard subscription).
-    let subject: Subject<RawBytes> = Subject::new("md.tick.*");
+    // Subscribe to `md.tick.bin.>` (Phase B: binary Tick_v1 wire form).
+    // The plain `md.tick.<SYM>` subject carries the cockpit's JSON
+    // envelope which this engine cannot decode; engines listen on the
+    // dedicated `bin` subtree so format-detection is unnecessary.
+    let subject: Subject<RawBytes> = Subject::new("md.tick.bin.>");
     let mut sub = nats
         .subscriber(subject, FlatBuffersCodec)
         .await
@@ -93,21 +96,14 @@ async fn main() -> Result<()> {
                         }
                     }
                     None => {
-                        // The cockpit-shaped JSON tick payloads published
-                        // by `upstox-feed` arrive on the same subject. They
-                        // start with `{` and are not the engine's binary
-                        // tick layout — silently skip those instead of
-                        // logging a warning per tick. Real binary
-                        // corruption (anything else that fails to decode)
-                        // still surfaces at debug level.
-                        if bytes.first() == Some(&b'{') {
-                            // expected JSON-shaped UI payload; ignore.
-                        } else {
-                            tracing::debug!(
-                                len = bytes.len(),
-                                "discarded malformed tick payload"
-                            );
-                        }
+                        // Phase B: this engine subscribes only on
+                        // `md.tick.bin.>`, so any decode failure is a
+                        // real binary-format violation, not a JSON tick
+                        // arriving on the wrong subject. Surface it.
+                        tracing::warn!(
+                            len = bytes.len(),
+                            "discarded malformed tick payload"
+                        );
                     }
                 }
             }

@@ -501,11 +501,61 @@ async fn publish_tick(nats: &NatsClient, instrument_key: &str, item: &Value) {
         debug!(error = %e, "publish tick (ISIN subject) failed");
     }
 
+    // Phase B: also publish the 93-byte Tick_v1 binary on
+    // `md.tick.bin.<SYM>` so hedge-orderflow / hedge-features /
+    // hedge-signals can compute on real Upstox prices. Format must match
+    // hedge-features::decode_tick exactly.
+    if let Some(bin) = encode_tick_v1(symbol, ltp_paise, bid_paise, ask_paise, ts_ns) {
+        let subject_bin = format!("md.tick.bin.{}", symbol);
+        if let Err(e) = raw.publish(subject_bin.clone(), bin.into()).await {
+            debug!(subject = %subject_bin, error = %e, "publish binary tick failed");
+        }
+    }
+
     debug!(subject = %subject_symbol, %symbol, ltp, "tick");
     match volume {
         Some(v) => info!(target: "upstox::tick", "  {:>12} ltp={:>9.2} vol={}", symbol, ltp, v),
         None => info!(target: "upstox::tick", "  {:>12} ltp={:>9.2}", symbol, ltp),
     }
+}
+
+/// Encode a `Tick_v1` 93-byte little-endian record matching the layout
+/// every Hot_Path engine consumes (see `hedge-features::decode_tick`):
+///
+/// `correlation_id [16] | symbol u32 | exchange i8 | ltp_paise i64 |
+///  bid_paise i64 | ask_paise i64 | ltq u64 | total_buy_qty u64 |
+///  total_sell_qty u64 | ts_exchange_ns u64 | ts_recv_ns u64`
+///
+/// Returns `None` for unknown symbols (id 0). Hot_Path engines drop
+/// id-0 ticks; that's the right behaviour — an unknown symbol means the
+/// cross-process symbol table needs a new entry.
+fn encode_tick_v1(
+    symbol: &str,
+    ltp_paise: i64,
+    bid_paise: i64,
+    ask_paise: i64,
+    ts_ns: i64,
+) -> Option<Vec<u8>> {
+    let symbol_id = hedge_bus::symbol_id_for(symbol);
+    if symbol_id == 0 {
+        return None;
+    }
+    let mut buf = Vec::with_capacity(85);
+    // correlation_id [16] — synth zero; real ticks carry no upstream
+    // correlation, the engine that ingests this tick mints a fresh id.
+    buf.extend_from_slice(&[0u8; 16]);
+    buf.extend_from_slice(&symbol_id.to_le_bytes()); // u32
+    buf.push(0i8 as u8); // exchange = NSE
+    buf.extend_from_slice(&ltp_paise.to_le_bytes()); // i64
+    buf.extend_from_slice(&bid_paise.to_le_bytes()); // i64
+    buf.extend_from_slice(&ask_paise.to_le_bytes()); // i64
+    buf.extend_from_slice(&0u64.to_le_bytes()); // ltq — Upstox LTP endpoint doesn't ship it
+    buf.extend_from_slice(&0u64.to_le_bytes()); // total_buy_qty — only quotes endpoint has this
+    buf.extend_from_slice(&0u64.to_le_bytes()); // total_sell_qty
+    buf.extend_from_slice(&(ts_ns as u64).to_le_bytes()); // ts_exchange_ns (use receive ts as proxy)
+    buf.extend_from_slice(&(ts_ns as u64).to_le_bytes()); // ts_recv_ns
+    debug_assert_eq!(buf.len(), 85);
+    Some(buf)
 }
 
 async fn publish_book(nats: &NatsClient, instrument_key: &str, item: &Value) {

@@ -50,6 +50,7 @@ pub mod forbid;
 pub mod nats;
 pub mod redis_stream;
 pub mod subject;
+pub mod symbol_table;
 
 // ---- Public re-exports --------------------------------------------------
 
@@ -57,6 +58,7 @@ pub use codec::{Codec, FlatBuffersCodec, JsonCodec, RawBytes};
 pub use error::BusError;
 pub use forbid::FORBIDDEN_DEPENDENCIES;
 pub use nats::{NatsClient, NatsPublisher, NatsSubscriber};
+pub use symbol_table::{symbol_for_id, symbol_id_for};
 pub use redis_stream::{
     RedisStreamConsumer, RedisStreamProducer, StreamEntry, STREAM_HOT_APPROVALS,
     STREAM_HOT_FILLS, STREAM_HOT_REPLAY_RECORD, STREAM_HOT_SIGNALS,

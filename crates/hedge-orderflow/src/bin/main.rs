@@ -119,12 +119,14 @@ async fn run_book_loop(_engine: Arc<OrderflowEngine>, nats: NatsClient) -> Resul
 }
 
 async fn run_tick_loop(_engine: Arc<OrderflowEngine>, nats: NatsClient) -> Result<()> {
-    let subject: Subject<hedge_bus::RawBytes> = Subject::new("md.tick.>");
+    // Phase B: subscribe to `md.tick.bin.>` (binary Tick_v1) instead of
+    // the wildcard `md.tick.>` which now also carries cockpit JSON.
+    let subject: Subject<hedge_bus::RawBytes> = Subject::new("md.tick.bin.>");
     let mut sub = nats
         .subscriber(subject, hedge_bus::FlatBuffersCodec)
         .await
-        .context("subscribe md.tick.>")?;
-    info!("subscribed md.tick.>");
+        .context("subscribe md.tick.bin.>")?;
+    info!("subscribed md.tick.bin.>");
     loop {
         match sub.recv_bytes().await {
             Ok(bytes) => {

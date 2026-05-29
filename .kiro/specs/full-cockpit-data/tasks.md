@@ -101,17 +101,17 @@ After this phase, running `start.bat` with `HEDGE_DEMO_SYNTH=on` (default) popul
 
 After this phase, real Upstox prices flow through the existing scaffolds in hedge-orderflow / hedge-features / hedge-signals. Four panels (`OrderflowHeatmap`, `Latency` for TickIngest/FeatureExtraction stages, `AiConfidenceScores`, `AiExplanations`) drop the synth badge and show real-data computations. Synth keeps filling the rest.
 
-- [ ] B.1 `hedge-bus::symbol_id_for` static table — module `crates/hedge-bus/src/symbol_table.rs` with the 5 large-cap basket plus inverse `symbol_for_id`, exposed at crate root — files: `crates/hedge-bus/src/symbol_table.rs`, `crates/hedge-bus/src/lib.rs` — references: REQ-5.6
+- [x] B.1 `hedge-bus::symbol_id_for` static table — module `crates/hedge-bus/src/symbol_table.rs` with the 5 large-cap basket plus inverse `symbol_for_id`, exposed at crate root — files: `crates/hedge-bus/src/symbol_table.rs`, `crates/hedge-bus/src/lib.rs` — references: REQ-5.6
 
-- [ ] B.2 upstox-feed dual publisher — alongside JSON `md.tick.<SYM>`, encode `Tick_v1` 93-byte FlatBuffer and publish on `md.tick.bin.<SYM>`; both publishes within 1ms; reuses `hedge-schemas::Tick` — files: `crates/hedge-market-data/src/bin/upstox_feed.rs` — references: REQ-5.1, REQ-5.2
+- [x] B.2 upstox-feed dual publisher — alongside JSON `md.tick.<SYM>`, encode `Tick_v1` 93-byte FlatBuffer and publish on `md.tick.bin.<SYM>`; both publishes within 1ms; reuses `hedge-schemas::Tick` — files: `crates/hedge-market-data/src/bin/upstox_feed.rs` — references: REQ-5.1, REQ-5.2
 
-- [ ] B.3 hedge-features subscribes `md.tick.bin.>` — change subscription pattern, remove `b'{'` JSON sentinel skip — files: `crates/hedge-features/src/bin/main.rs` — references: REQ-5.3, REQ-5.5
+- [x] B.3 hedge-features subscribes `md.tick.bin.>` — change subscription pattern, remove `b'{'` JSON sentinel skip — files: `crates/hedge-features/src/bin/main.rs` — references: REQ-5.3, REQ-5.5
 
-- [ ] B.4 hedge-orderflow subscribes `md.tick.bin.>` — same change — files: `crates/hedge-orderflow/src/bin/main.rs` — references: REQ-5.4
+- [x] B.4 hedge-orderflow subscribes `md.tick.bin.>` — same change — files: `crates/hedge-orderflow/src/bin/main.rs` — references: REQ-5.4
 
-- [ ] B.5 Verify hedge-signals + Latency panel — confirm `feat.update.*` flows, `sig.emitted` fires on real features, `obs.latency.TickIngest` / `obs.latency.FeatureExtraction` arrive at the gateway — files: (verification only — no code changes) — references: REQ-12.2
+- [x] B.5 Verify hedge-signals + Latency panel — confirm `feat.update.*` flows, `sig.emitted` fires on real features, `obs.latency.TickIngest` / `obs.latency.FeatureExtraction` arrive at the gateway — files: (verification only — no code changes) — references: REQ-12.2
 
-- [ ] B.6 wiremock pair-atomicity test — fake Upstox endpoint, assert that every JSON tick has a matching `Tick_v1` with same `ltp_paise` within 1ms — files: `crates/hedge-market-data/tests/dual_publish.rs` — references: REQ-5.1
+- [x] B.6 wiremock pair-atomicity test — fake Upstox endpoint, assert that every JSON tick has a matching `Tick_v1` with same `ltp_paise` within 1ms — files: `crates/hedge-market-data/tests/dual_publish.rs` — references: REQ-5.1
 
 **Phase B done when** — during trading hours with synth running, the four panels above show real data (no synth badge), the rest still synthetic. The `Latency` panel shows real TickIngest + FeatureExtraction p50/p95/p99.
 
