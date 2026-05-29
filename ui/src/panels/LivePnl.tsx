@@ -11,6 +11,7 @@ export function LivePnl(): JSX.Element {
   return (
     <Panel
       title="Live PnL"
+      synthChannel="risk"
       status={target ? <span className="text-hedge-ok">target reached</span> : null}
     >
       {!portfolio ? (

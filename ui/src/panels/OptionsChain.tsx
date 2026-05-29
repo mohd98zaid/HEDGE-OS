@@ -12,6 +12,7 @@ export function OptionsChain(): JSX.Element {
   return (
     <Panel
       title="Options Chain"
+      synthChannel="market"
       status={<span>{symbols.length} underlyings</span>}
     >
       {symbols.length === 0 ? (

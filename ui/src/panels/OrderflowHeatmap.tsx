@@ -11,7 +11,7 @@ export function OrderflowHeatmap(): JSX.Element {
 
   if (symbols.length === 0) {
     return (
-      <Panel title="Orderflow Heatmap" critical>
+      <Panel title="Orderflow Heatmap" synthChannel="orderflow" critical>
         <p className="text-slate-500">Awaiting first of.heatmap.* frame …</p>
       </Panel>
     );
@@ -20,6 +20,7 @@ export function OrderflowHeatmap(): JSX.Element {
   return (
     <Panel
       title="Orderflow Heatmap"
+      synthChannel="orderflow"
       critical
       status={<span>{symbols.length} symbols</span>}
     >

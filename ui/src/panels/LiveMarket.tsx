@@ -15,6 +15,7 @@ export function LiveMarket(): JSX.Element {
   return (
     <Panel
       title="Live Market"
+      synthChannel="market"
       critical
       status={
         <span>

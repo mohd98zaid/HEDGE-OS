@@ -11,6 +11,7 @@ export function ExecutionPanel(): JSX.Element {
   return (
     <Panel
       title="Execution"
+      synthChannel="exec"
       critical
       status={<span>{recent.length} recent</span>}
     >

@@ -13,6 +13,7 @@ export function RiskPanel(): JSX.Element {
   return (
     <Panel
       title="Risk"
+      synthChannel="risk"
       critical
       status={
         <span className={ks.active ? "text-hedge-danger" : "text-hedge-ok"}>

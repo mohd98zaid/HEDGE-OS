@@ -10,7 +10,7 @@ export function Positions(): JSX.Element {
   const syms = Object.keys(positions).sort();
 
   return (
-    <Panel title="Positions" status={<span>{syms.length} open</span>}>
+    <Panel title="Positions" synthChannel="risk" status={<span>{syms.length} open</span>}>
       {syms.length === 0 ? (
         <p className="text-slate-500">No open positions.</p>
       ) : (

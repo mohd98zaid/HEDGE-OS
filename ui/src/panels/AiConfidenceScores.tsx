@@ -66,6 +66,7 @@ export function AiConfidenceScores(): JSX.Element {
   return (
     <Panel
       title="AI Confidence Scores"
+      synthChannel="signals"
       status={<span>{visible.length} ranked</span>}
     >
       {visible.length === 0 ? (

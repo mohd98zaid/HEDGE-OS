@@ -26,7 +26,7 @@ export function ReplayControls({ sendIntent }: ReplayControlsProps): JSX.Element
   const playing = status?.playing ?? false;
 
   return (
-    <Panel title="Replay Controls" status={status ? <span>{status.session_id ?? "—"}</span> : null}>
+    <Panel title="Replay Controls" synthChannel="replay" status={status ? <span>{status.session_id ?? "—"}</span> : null}>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"

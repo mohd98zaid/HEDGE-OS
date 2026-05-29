@@ -9,7 +9,7 @@ export function AiExplanations(): JSX.Element {
   const withText = recent.filter((s) => s.explanation && !s.shadow).slice(0, 12);
 
   return (
-    <Panel title="AI Explanations" status={<span>{withText.length} rationales</span>}>
+    <Panel title="AI Explanations" synthChannel="signals" status={<span>{withText.length} rationales</span>}>
       {withText.length === 0 ? (
         <p className="text-slate-500">No grounded explanations yet.</p>
       ) : (

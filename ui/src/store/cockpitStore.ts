@@ -140,6 +140,10 @@ export interface LatencySlice {
 export interface GatewayMeta {
   state: "connecting" | "open" | "reconnecting" | "closed";
   lastSeenByChannel: Partial<Record<ChannelId, number>>;
+  /** Per-channel flag: true iff the most-recent envelope on that channel
+   *  carried `_synth: true`. Drives the SynthBadge in panel headers
+   *  (full-cockpit-data spec, REQ-13). */
+  synthChannels: Partial<Record<ChannelId, boolean>>;
 }
 
 export interface CockpitState {
@@ -276,7 +280,7 @@ const uniqLeft = (existing: string[], incoming: string[], cap_n: number): string
 // ---------- the store --------------------------------------------------------
 
 export const useCockpitStore = create<CockpitState>((set) => ({
-  meta: { state: "closed", lastSeenByChannel: {} },
+  meta: { state: "closed", lastSeenByChannel: {}, synthChannels: {} },
   market: emptyMarket(),
   orderflow: emptyOrderflow(),
   signals: emptySignals(),
@@ -317,7 +321,7 @@ export const useCockpitStore = create<CockpitState>((set) => ({
 
   reset: () =>
     set(() => ({
-      meta: { state: "closed", lastSeenByChannel: {} },
+      meta: { state: "closed", lastSeenByChannel: {}, synthChannels: {} },
       market: emptyMarket(),
       orderflow: emptyOrderflow(),
       signals: emptySignals(),
@@ -333,11 +337,29 @@ export const useCockpitStore = create<CockpitState>((set) => ({
 
   applyEnvelope: (env) =>
     set((s) => {
+      // Synth detection (REQ-13): an envelope is synth iff its payload (or
+      // payload.data when wrapped in a {kind, data} discriminator) has a
+      // top-level `_synth: true` flag.
+      const isSynth = (() => {
+        const p = env.payload as Record<string, unknown> | null | undefined;
+        if (p && typeof p === "object" && (p as { _synth?: unknown })._synth === true)
+          return true;
+        const data = (p as { data?: unknown })?.data as
+          | Record<string, unknown>
+          | undefined;
+        if (data && typeof data === "object" && (data as { _synth?: unknown })._synth === true)
+          return true;
+        return false;
+      })();
       const stamped: GatewayMeta = {
         ...s.meta,
         lastSeenByChannel: {
           ...s.meta.lastSeenByChannel,
           [env.channel]: env.ts_ns ?? Date.now() * 1_000_000,
+        },
+        synthChannels: {
+          ...s.meta.synthChannels,
+          [env.channel]: isSynth,
         },
       };
 

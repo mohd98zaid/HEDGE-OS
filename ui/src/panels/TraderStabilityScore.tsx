@@ -45,6 +45,7 @@ export function TraderStabilityScore(): JSX.Element {
   return (
     <Panel
       title="Trader Stability Score"
+      synthChannel="psych"
       status={
         latestIntervention ? (
           <span className="text-hedge-warn">

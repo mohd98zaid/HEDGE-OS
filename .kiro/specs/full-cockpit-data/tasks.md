@@ -87,11 +87,11 @@ After this phase, running `start.bat` with `HEDGE_DEMO_SYNTH=on` (default) popul
 
 - [x] A.9 Coordinator wires every generator — `src/coordinator.rs` boots all generators with shared `SuppressionRegistry`, single tokio runtime, graceful shutdown on Ctrl+C — files: `crates/hedge-demo-synth/src/coordinator.rs`, `crates/hedge-demo-synth/src/main.rs` — references: REQ-1.1, REQ-4.4
 
-- [-] A.10 `start.bat` integration + `HEDGE_DEMO_SYNTH` toggle — launch HEDGE-demo-synth window between upstox-feed and ui-gateway when env=on (default on); summary block shows it; gracefully skipped when env=off — files: `start.bat` — references: REQ-4.1, REQ-4.2, REQ-4.3, REQ-14.2, REQ-14.3
+- [x] A.10 `start.bat` integration + `HEDGE_DEMO_SYNTH` toggle — launch HEDGE-demo-synth window between upstox-feed and ui-gateway when env=on (default on); summary block shows it; gracefully skipped when env=off — files: `start.bat` — references: REQ-4.1, REQ-4.2, REQ-4.3, REQ-14.2, REQ-14.3
 
-- [ ] A.11 Cockpit `synth` badge per panel — selector reads `_synth` flag from each panel's most recent envelope; small badge component in panel header — files: `ui/src/components/SynthBadge.tsx`, `ui/src/store/cockpitStore.ts` (track `_synth` per-channel), 16 panel files — references: REQ-13.1, REQ-13.2, REQ-13.3
+- [x] A.11 Cockpit `synth` badge per panel — selector reads `_synth` flag from each panel's most recent envelope; small badge component in panel header — files: `ui/src/components/SynthBadge.tsx`, `ui/src/store/cockpitStore.ts` (track `_synth` per-channel), 16 panel files — references: REQ-13.1, REQ-13.2, REQ-13.3
 
-- [ ] A.12 E2E smoke test — boot synth + ui-gateway against test NATS, open WS, assert ≥1 event arrives on each of the 11 cockpit channels within 10s — files: `crates/hedge-demo-synth/tests/full_dashboard_smoke.rs` — references: REQ-1.1, REQ-12.1
+- [x] A.12 E2E smoke test — boot synth + ui-gateway against test NATS, open WS, assert ≥1 event arrives on each of the 11 cockpit channels within 10s — files: `crates/hedge-demo-synth/tests/full_dashboard_smoke.rs` — references: REQ-1.1, REQ-12.1
 
 **Phase A done when** — outside trading hours, with no Hot_Path engines running, the cockpit populates every panel within 10 seconds of `start.bat` finishing. Every synth-driven panel shows the `synth` badge.
 

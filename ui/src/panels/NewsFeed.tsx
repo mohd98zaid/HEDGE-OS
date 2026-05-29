@@ -8,7 +8,7 @@ export function NewsFeed(): JSX.Element {
   const recent = useCockpitStore((s) => s.news.recent);
 
   return (
-    <Panel title="News" status={<span>{recent.length} items</span>}>
+    <Panel title="News" synthChannel="news" status={<span>{recent.length} items</span>}>
       {recent.length === 0 ? (
         <p className="text-slate-500">Awaiting ai.news.impact.* …</p>
       ) : (

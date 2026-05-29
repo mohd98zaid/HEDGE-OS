@@ -24,7 +24,7 @@ export function Alerts(): JSX.Element {
   const list = useCockpitStore((s) => s.alerts.list);
 
   return (
-    <Panel title="Alerts" status={<span>{list.length} active</span>}>
+    <Panel title="Alerts" synthChannel="alerts" status={<span>{list.length} active</span>}>
       {list.length === 0 ? (
         <p className="text-slate-500">No alerts.</p>
       ) : (

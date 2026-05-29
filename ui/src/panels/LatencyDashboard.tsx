@@ -22,6 +22,7 @@ export function LatencyDashboard(): JSX.Element {
   return (
     <Panel
       title="Latency"
+      synthChannel="latency"
       critical
       status={<span>{records.length} samples</span>}
     >
