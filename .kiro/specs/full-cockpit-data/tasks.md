@@ -65,6 +65,8 @@ flowchart TD
 
 ---
 
+## Tasks
+
 ## Phase A — Synthetic data injector (~2 hours)
 
 After this phase, running `start.bat` with `HEDGE_DEMO_SYNTH=on` (default) populates every cockpit panel within 10 seconds, regardless of trading hours or live broker state. Each task here is independently shippable.
@@ -123,7 +125,7 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 
 ### Risk_Engine
 
-- [ ] C.1 hedge-risk real decision engine — subscribe set, kill-switch + cooldown + priority + sizing logic per design Phase C low-level; publish `risk.decision.approved`/`rejected`/`cooldown` — files: `crates/hedge-risk/src/engine.rs`, `crates/hedge-risk/src/main.rs` — references: REQ-6.1, REQ-6.2, REQ-6.3, REQ-6.4, REQ-6.5, REQ-6.6
+- [x] C.1 hedge-risk real decision engine — subscribe set, kill-switch + cooldown + priority + sizing logic per design Phase C low-level; publish `risk.decision.approved`/`rejected`/`cooldown` — files: `crates/hedge-risk/src/engine.rs`, `crates/hedge-risk/src/main.rs` — references: REQ-6.1, REQ-6.2, REQ-6.3, REQ-6.4, REQ-6.5, REQ-6.6
 
 - [x] C.2 hedge-risk Redis cooldown persistence — write/read active cooldowns and daily P&L; restart preserves state — files: `crates/hedge-risk/src/persistence.rs` — references: REQ-6.7
 
@@ -137,7 +139,7 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 
 ### Position_Engine
 
-- [ ] C.6 hedge-position state machine + P&L — subscribe `exec.fill.*` + `md.tick.bin.>`; per-symbol qty/avg_cost/realised/unrealised; publish `pos.update.<SYM>` per fill (within 100ms) and `pos.risk_state` 1Hz — files: `crates/hedge-position/src/engine.rs`, `crates/hedge-position/src/main.rs` — references: REQ-8.1, REQ-8.2, REQ-8.3, REQ-8.4, REQ-8.5, REQ-11.3
+- [x] C.6 hedge-position state machine + P&L — subscribe `exec.fill.*` + `md.tick.bin.>`; per-symbol qty/avg_cost/realised/unrealised; publish `pos.update.<SYM>` per fill (within 100ms) and `pos.risk_state` 1Hz — files: `crates/hedge-position/src/engine.rs`, `crates/hedge-position/src/main.rs` — references: REQ-8.1, REQ-8.2, REQ-8.3, REQ-8.4, REQ-8.5, REQ-11.3
 
 ### Warm_AI_Pipeline
 
@@ -151,7 +153,7 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 
 ### Upstox options-chain
 
-- [ ] C.11 upstox-feed options-chain poller — 5s cadence per underlying, auto-rotate weekly expiry, publish `md.oi.<UNDERLYING>` matching `OpenInterest` shape; default underlyings `Nifty 50`, `Nifty Bank` — files: `crates/hedge-market-data/src/bin/upstox_feed.rs` (extend) or `crates/hedge-market-data/src/bin/upstox_oi.rs` (new) — references: REQ-10.1, REQ-10.2, REQ-10.3, REQ-10.4, REQ-10.5
+- [x] C.11 upstox-feed options-chain poller — 5s cadence per underlying, auto-rotate weekly expiry, publish `md.oi.<UNDERLYING>` matching `OpenInterest` shape; default underlyings `Nifty 50`, `Nifty Bank` — files: `crates/hedge-market-data/src/bin/upstox_feed.rs` (extend) or `crates/hedge-market-data/src/bin/upstox_oi.rs` (new) — references: REQ-10.1, REQ-10.2, REQ-10.3, REQ-10.4, REQ-10.5
 
 ### Property tests
 
@@ -192,3 +194,38 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 - Phase A is the priority. If A works as expected, proceed to B. If B works, proceed to C.
 - Phase C is multi-week; treat each engine as its own focused effort with its own follow-up sub-spec if scope grows.
 - Every published payload must conform to the cockpit reducer types defined in `ui/src/types/`. Validate by deserialising into the matching type during tests.
+
+## Task Dependency Graph
+
+The waves below encode the same dependencies drawn in the Task Flow diagram above. Tasks within a wave are independent; a wave may only start once all earlier waves complete.
+
+```json
+{
+  "waves": [
+    { "id": 0, "tasks": ["A.1"] },
+    { "id": 1, "tasks": ["A.2"] },
+    { "id": 2, "tasks": ["A.3"] },
+    { "id": 3, "tasks": ["A.4"] },
+    { "id": 4, "tasks": ["A.5"] },
+    { "id": 5, "tasks": ["A.6"] },
+    { "id": 6, "tasks": ["A.7"] },
+    { "id": 7, "tasks": ["A.8"] },
+    { "id": 8, "tasks": ["A.9"] },
+    { "id": 9, "tasks": ["A.10"] },
+    { "id": 10, "tasks": ["A.11"] },
+    { "id": 11, "tasks": ["A.12"] },
+    { "id": 12, "tasks": ["B.1"] },
+    { "id": 13, "tasks": ["B.2"] },
+    { "id": 14, "tasks": ["B.3"] },
+    { "id": 15, "tasks": ["B.4"] },
+    { "id": 16, "tasks": ["B.5"] },
+    { "id": 17, "tasks": ["B.6"] },
+    { "id": 18, "tasks": ["C.1", "C.7", "C.8", "C.9", "C.10", "C.11"] },
+    { "id": 19, "tasks": ["C.2", "C.3"] },
+    { "id": 20, "tasks": ["C.4"] },
+    { "id": 21, "tasks": ["C.5"] },
+    { "id": 22, "tasks": ["C.6", "C.13"] },
+    { "id": 23, "tasks": ["C.12"] }
+  ]
+}
+```

@@ -1167,7 +1167,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bytes",
+ "chrono",
  "dashmap",
+ "futures",
  "hedge-bus",
  "hedge-config",
  "hedge-core",
