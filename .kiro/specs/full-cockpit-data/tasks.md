@@ -157,9 +157,9 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 
 ### Property tests
 
-- [ ]* C.12 conservation-of-cash property — random fill+tick sequences; assert aggregate P&L invariant — files: `crates/hedge-position/tests/conservation.rs` — references: REQ-8.6
+- [x]* C.12 conservation-of-cash property — random fill+tick sequences; assert aggregate P&L invariant — files: `crates/hedge-position/tests/conservation.rs` — references: REQ-8.6
 
-- [ ]* C.13 Authority_Hierarchy property — every `exec.order.submitted` has matching prior `risk.decision.approved` — files: `crates/hedge-exec/tests/authority.rs` — references: REQ-11.1, REQ-11.2
+- [x]* C.13 Authority_Hierarchy property — every `exec.order.submitted` has matching prior `risk.decision.approved` — files: `crates/hedge-exec/tests/authority.rs` — references: REQ-11.1, REQ-11.2
 
 **Phase C done when** — during trading hours with `HEDGE_DEMO_SYNTH=off`, every panel populates with real data. Killing Demo_Synth produces no empty panels.
 
