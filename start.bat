@@ -1,14 +1,28 @@
 @echo off
 REM ============================================================================
-REM  PROJECT HEDGE - Ordered Startup
+REM  PROJECT HEDGE - Ordered Startup (mode-aware)
 REM ============================================================================
 REM
-REM  Starts all services in the correct dependency order:
-REM    1. Infrastructure (NATS only - everything else is optional)
-REM    2. Wait for NATS to be ready
-REM    3. Hot_Path services in pipeline order
-REM    4. UI Gateway
-REM    5. React Cockpit UI
+REM  This is the shared engine launched by:
+REM    * start-real.bat       -> HEDGE_MODE=real      (live / real data)
+REM    * start-synthetic.bat  -> HEDGE_MODE=synthetic (demo / synthetic data)
+REM
+REM  You can also run it directly:
+REM    start.bat              -> defaults to HEDGE_MODE=real
+REM    set HEDGE_MODE=synthetic && start.bat
+REM
+REM  MODE = real
+REM    Full Hot_Path pipeline (Upstox feed -> orderflow -> features ->
+REM    signals -> risk -> exec -> position) + Warm_AI services. Demo synth
+REM    is OFF, so every panel shows REAL data. Needs HEDGE_UPSTOX_ACCESS_TOKEN
+REM    and (for live ticks) market hours; panels with no live producer show
+REM    "Awaiting...".
+REM
+REM  MODE = synthetic
+REM    Only NATS + Demo Synth + UI Gateway + Cockpit UI. The deterministic
+REM    synthetic publisher fills EVERY panel within ~10s. No broker token and
+REM    no market hours required. The Hot_Path engines and Warm_AI services are
+REM    NOT started, so nothing real can leak in and synth owns every subject.
 REM
 REM  Service windows are kept OPEN on exit so you can see error messages.
 REM  Press any key in this window to stop everything.
@@ -18,9 +32,33 @@ setlocal enabledelayedexpansion
 set "PROJECT_DIR=%~dp0"
 cd /d "%PROJECT_DIR%"
 
+REM --- Resolve mode (default real). Launchers set HEDGE_MODE before calling. ---
+if not defined HEDGE_MODE set "HEDGE_MODE=real"
+if /i "%HEDGE_MODE%"=="synthetic" (
+    set "HEDGE_MODE=synthetic"
+) else if /i "%HEDGE_MODE%"=="synth" (
+    set "HEDGE_MODE=synthetic"
+) else if /i "%HEDGE_MODE%"=="demo" (
+    set "HEDGE_MODE=synthetic"
+) else (
+    set "HEDGE_MODE=real"
+)
+
+if /i "%HEDGE_MODE%"=="synthetic" (
+    set "RUN_REAL_PIPELINE=0"
+) else (
+    set "RUN_REAL_PIPELINE=1"
+)
+
 echo.
 echo  ============================================================
 echo   PROJECT HEDGE - Ordered Startup
+echo   MODE: %HEDGE_MODE%
+if /i "%HEDGE_MODE%"=="synthetic" (
+    echo   ^> Dashboard will be filled with SYNTHETIC data.
+) else (
+    echo   ^> Dashboard will show REAL data ^(needs token / market hours^).
+)
 echo  ============================================================
 echo.
 
@@ -32,21 +70,43 @@ if errorlevel 1 (
     exit /b 1
 )
 
-if not exist "target\release\hedge-session.exe" (
-    echo  [ERROR] Binaries not found. Building now...
-    cargo build --release --workspace
+REM --- Build checks (mode-specific) ---
+if "%RUN_REAL_PIPELINE%"=="1" (
+    if not exist "target\release\hedge-session.exe" (
+        echo  [ERROR] Binaries not found. Building workspace now...
+        cargo build --release --workspace
+        if errorlevel 1 (
+            echo  [ERROR] Build failed.
+            pause
+            exit /b 1
+        )
+    )
+    if not exist "target\release\upstox-feed.exe" (
+        echo  [ERROR] upstox-feed.exe missing. Building...
+        cargo build --release -p hedge-market-data --bin upstox-feed
+        if errorlevel 1 (
+            echo  [ERROR] Build of upstox-feed failed.
+            pause
+            exit /b 1
+        )
+    )
+)
+
+REM Both modes need the UI gateway; synthetic mode also needs demo-synth.
+if not exist "target\release\hedge-ui-gateway.exe" (
+    echo  [INFO] Building hedge-ui-gateway...
+    cargo build --release -p hedge-ui-gateway --bin hedge-ui-gateway
     if errorlevel 1 (
-        echo  [ERROR] Build failed.
+        echo  [ERROR] Build of hedge-ui-gateway failed.
         pause
         exit /b 1
     )
 )
-
-if not exist "target\release\upstox-feed.exe" (
-    echo  [ERROR] upstox-feed.exe missing. Building...
-    cargo build --release -p hedge-market-data --bin upstox-feed
+if not exist "target\release\hedge-demo-synth.exe" (
+    echo  [INFO] Building hedge-demo-synth...
+    cargo build --release -p hedge-demo-synth --bin hedge-demo-synth
     if errorlevel 1 (
-        echo  [ERROR] Build of upstox-feed failed.
+        echo  [ERROR] Build of hedge-demo-synth failed.
         pause
         exit /b 1
     )
@@ -59,12 +119,26 @@ if exist .env (
     )
 )
 
-REM --- Check Upstox token presence (required for live data) ---
-if not defined HEDGE_UPSTOX_ACCESS_TOKEN (
-    echo  [WARNING] HEDGE_UPSTOX_ACCESS_TOKEN is not set.
-    echo            The upstox-feed window will exit immediately.
-    echo            Refresh your token in .env and re-run start.bat.
-    echo.
+REM --- Derive feature flags from HEDGE_MODE (AUTHORITATIVE: overrides .env) ---
+REM  This MUST run after the .env load so the chosen mode always wins over any
+REM  HEDGE_DEMO_SYNTH / HEDGE_WARM_AI value that happens to be in .env.
+if /i "%HEDGE_MODE%"=="synthetic" (
+    set "HEDGE_DEMO_SYNTH=on"
+    set "HEDGE_WARM_AI=off"
+) else (
+    set "HEDGE_DEMO_SYNTH=off"
+    set "HEDGE_WARM_AI=on"
+)
+
+REM --- Check Upstox token presence (real mode only) ---
+if "%RUN_REAL_PIPELINE%"=="1" (
+    if not defined HEDGE_UPSTOX_ACCESS_TOKEN (
+        echo  [WARNING] HEDGE_UPSTOX_ACCESS_TOKEN is not set.
+        echo            The upstox-feed window will exit immediately and the
+        echo            market panels will stay empty. Refresh your token in
+        echo            .env, or run start-synthetic.bat for a demo dashboard.
+        echo.
+    )
 )
 
 REM --- Set defaults ---
@@ -81,7 +155,7 @@ REM NATS URL (no auth in dev)
 set "HEDGE_NATS_URL=nats://127.0.0.1:4222"
 
 REM ============================================================
-REM  STEP 1: Infrastructure
+REM  STEP 1: Infrastructure (both modes need NATS)
 REM ============================================================
 echo  [1/5] Starting infrastructure...
 docker compose --profile infra up -d
@@ -99,8 +173,10 @@ echo        Infrastructure ready.
 echo.
 
 REM ============================================================
-REM  STEP 2: Session + Supervisor (no market dependency)
+REM  STEP 2 + 3 + 3.6: Real pipeline (real mode only)
 REM ============================================================
+if "%RUN_REAL_PIPELINE%"=="0" goto :skip_real_pipeline
+
 echo  [2/5] Starting session controller + supervisor...
 start "HEDGE-session" cmd /k target\release\hedge-session.exe
 start "HEDGE-supervisor" cmd /k target\release\hedge-supervisor.exe
@@ -108,9 +184,6 @@ timeout /t 2 /nobreak >nul
 echo        Session + Supervisor started.
 echo.
 
-REM ============================================================
-REM  STEP 3: Hot_Path pipeline (in order)
-REM ============================================================
 echo  [3/5] Starting Hot_Path pipeline (in dependency order)...
 
 echo        [a] Market Data Engine (Upstox REST poller)...
@@ -145,55 +218,16 @@ REM hedge-replay is an inspector CLI, not a daemon.
 REM   Usage: target\release\hedge-replay.exe list | info <id> | dump <id>
 REM Do NOT launch it from start.bat.
 
-REM ============================================================
-REM  STEP 3.5: Demo Synth (deterministic dashboard filler)
-REM ============================================================
-REM  Defaults to ON so every panel populates outside trading hours.
-REM  Set HEDGE_DEMO_SYNTH=off in .env (or this shell) to disable.
-if not defined HEDGE_DEMO_SYNTH set "HEDGE_DEMO_SYNTH=on"
-if /i "%HEDGE_DEMO_SYNTH%"=="off" goto :skip_demo_synth
-if /i "%HEDGE_DEMO_SYNTH%"=="false" goto :skip_demo_synth
-if /i "%HEDGE_DEMO_SYNTH%"=="0" goto :skip_demo_synth
-
-if not exist "target\release\hedge-demo-synth.exe" (
-    echo  [INFO] Building hedge-demo-synth...
-    cargo build --release -p hedge-demo-synth --bin hedge-demo-synth >nul 2>&1
-)
-echo        [i] Demo Synth (HEDGE_DEMO_SYNTH=on)...
-start "HEDGE-demo-synth" cmd /k target\release\hedge-demo-synth.exe
-timeout /t 1 /nobreak >nul
-goto :demo_synth_done
-
-:skip_demo_synth
-echo        [i] Demo Synth skipped (HEDGE_DEMO_SYNTH=%HEDGE_DEMO_SYNTH%).
-
-:demo_synth_done
-
 echo        Hot_Path pipeline started.
 echo.
 
-REM ============================================================
-REM  STEP 3.6: Warm_AI_Pipeline (Python microservices)
-REM ============================================================
-REM  Ranking, News, Regime, Psychology engines. They publish real
-REM  ai.rank / ai.news.impact / ai.psych / md.breadth output and the
-REM  demo-synth suppression registry backs off those subjects within
-REM  ~5s, so these panels switch from synthetic to real automatically.
-REM
-REM  Graceful degradation: each service runs even without Redis / Ollama
-REM  / ONNX weights (ranking uses neutral factors, news uses a lexicon
-REM  sentiment fallback). Set HEDGE_WARM_AI=off to disable.
-if not defined HEDGE_WARM_AI set "HEDGE_WARM_AI=on"
+REM --- Warm_AI_Pipeline (Python microservices) ---
 if /i "%HEDGE_WARM_AI%"=="off" goto :skip_warm_ai
 if /i "%HEDGE_WARM_AI%"=="false" goto :skip_warm_ai
 if /i "%HEDGE_WARM_AI%"=="0" goto :skip_warm_ai
 
-REM Resolve a Python interpreter (prefer the venv if present).
 set "HEDGE_PY=python"
 if exist "python\hedge_warm_ai\.venv\Scripts\python.exe" set "HEDGE_PY=python\hedge_warm_ai\.venv\Scripts\python.exe"
-
-REM Ensure the package is importable even without an editable install by
-REM putting its src/ on PYTHONPATH (harmless when already installed).
 set "PYTHONPATH=%PROJECT_DIR%python\hedge_warm_ai\src;%PYTHONPATH%"
 
 echo  [3.6] Starting Warm_AI_Pipeline (Python)...
@@ -219,9 +253,38 @@ echo  [3.6] Warm_AI_Pipeline skipped (HEDGE_WARM_AI=%HEDGE_WARM_AI%).
 
 :warm_ai_done
 echo.
+goto :pipeline_done
+
+:skip_real_pipeline
+echo  [2/5] Real Hot_Path pipeline skipped (synthetic mode).
+echo  [3/5] Upstox feed + engines skipped (synthetic mode).
+echo.
+
+:pipeline_done
 
 REM ============================================================
-REM  STEP 4: UI Gateway (needs NATS + Hot_Path publishing)
+REM  STEP 3.5: Demo Synth (synthetic dashboard filler)
+REM ============================================================
+REM  HEDGE_DEMO_SYNTH is derived from HEDGE_MODE above:
+REM    synthetic -> on   (synth fills every panel)
+REM    real      -> off  (real engines own every panel)
+if /i "%HEDGE_DEMO_SYNTH%"=="off" goto :skip_demo_synth
+if /i "%HEDGE_DEMO_SYNTH%"=="false" goto :skip_demo_synth
+if /i "%HEDGE_DEMO_SYNTH%"=="0" goto :skip_demo_synth
+
+echo  [3.5] Demo Synth (HEDGE_DEMO_SYNTH=on)...
+start "HEDGE-demo-synth" cmd /k target\release\hedge-demo-synth.exe
+timeout /t 1 /nobreak >nul
+goto :demo_synth_done
+
+:skip_demo_synth
+echo  [3.5] Demo Synth skipped (HEDGE_DEMO_SYNTH=%HEDGE_DEMO_SYNTH%).
+
+:demo_synth_done
+echo.
+
+REM ============================================================
+REM  STEP 4: UI Gateway (needs NATS + publishers)
 REM ============================================================
 echo  [4/5] Starting UI Gateway...
 start "HEDGE-ui-gateway" cmd /k target\release\hedge-ui-gateway.exe
@@ -245,20 +308,29 @@ timeout /t 3 /nobreak >nul
 
 echo.
 echo  ============================================================
-echo   PROJECT HEDGE is running!
+echo   PROJECT HEDGE is running!  [MODE: %HEDGE_MODE%]
 echo  ============================================================
 echo.
-echo   Hot_Path Pipeline:
-echo     Market Data  -^> Orderflow -^> Features -^> Signals
-echo     -^> Risk -^> Execution -^> Position
+if /i "%HEDGE_MODE%"=="synthetic" (
+    echo   Synthetic mode: every panel is filled by the deterministic
+    echo   Demo Synth publisher. No broker token or market hours needed.
+    echo   Hot_Path engines and Warm_AI are intentionally NOT running.
+) else (
+    echo   Real mode: data flows through the live Hot_Path pipeline:
+    echo     Market Data -^> Orderflow -^> Features -^> Signals
+    echo     -^> Risk -^> Execution -^> Position   ^(+ Warm_AI services^)
+    echo   Demo Synth is OFF. Panels with no live producer show "Awaiting...".
+)
 echo.
 echo   Services:
-echo     Session Controller   : running (09:15-15:30 IST gate)
-echo     Supervisor           : running (self-healing)
 echo     UI Gateway           : ws://localhost:8088
-echo     Upstox Feed          : REST polling, 500ms LTP / 2s book
-echo     Demo Synth           : %HEDGE_DEMO_SYNTH% (set HEDGE_DEMO_SYNTH=off to disable)
-echo     Warm_AI Pipeline     : %HEDGE_WARM_AI% (rank/news/regime/psych; set HEDGE_WARM_AI=off to disable)
+echo     Demo Synth           : %HEDGE_DEMO_SYNTH%
+echo     Warm_AI Pipeline     : %HEDGE_WARM_AI%
+if "%RUN_REAL_PIPELINE%"=="1" (
+    echo     Session Controller   : running (09:15-15:30 IST gate)
+    echo     Supervisor           : running (self-healing)
+    echo     Upstox Feed          : REST polling, 500ms LTP / 2s book
+)
 echo     (Replay is an inspector CLI: hedge-replay.exe list ^| info ^| dump)
 echo.
 echo   Dashboards:
@@ -268,17 +340,13 @@ echo     NATS Monitor         : http://localhost:8222
 echo     Jaeger Traces        : http://localhost:16686
 echo     Prometheus           : http://localhost:9090
 echo.
-echo   Brokers configured:
-echo     Primary: Upstox      (access token from .env)
-echo     Backup:  Angel One   (credentials in .env)
-echo.
 echo  ============================================================
 echo   Press any key to STOP all services and exit...
 echo  ============================================================
 pause >nul
 
 REM ============================================================
-REM  SHUTDOWN (reverse order)
+REM  SHUTDOWN (reverse order). taskkill on absent windows is harmless.
 REM ============================================================
 echo.
 echo  Stopping all services...
