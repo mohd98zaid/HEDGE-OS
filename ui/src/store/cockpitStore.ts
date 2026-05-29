@@ -34,6 +34,7 @@ import {
   type PsychEvent,
   type PsychIntervention,
   type PsychStability,
+  type RankFactors,
   type RankedSignal,
   type ReplayEvent,
   type ReplaySession,
@@ -579,7 +580,88 @@ function reduceSignalsChannel(
       priorities: { ...prev.priorities, [ev.symbol]: ev.to },
     };
   }
-  return reduceSignals(prev, env.payload as RankedSignal, warMode);
+  const flat = flattenSignalPayload(env.payload);
+  if (!flat) return prev;
+  return reduceSignals(prev, flat, warMode);
+}
+
+/**
+ * Normalise whatever the gateway forwards on /signals into a flat
+ * `RankedSignal`. The ui-gateway joins `sig.emitted` with `ai.rank.*` into a
+ * nested `{ signal, ranks: [...] , correlation_id?, shadowed_sources? }`
+ * envelope (see `crates/hedge-ui-gateway/src/signals_join.rs::merge_payload`),
+ * but the demo-synth and some direct publishers emit an already-flat
+ * `RankedSignal`. We accept BOTH and always return a flat object with a
+ * defined `correlation_id` so downstream panels (which call
+ * `correlation_id.slice(...)`) can never throw.
+ *
+ * Returns `null` when the payload cannot be coerced into a usable signal
+ * (no correlation id and no symbol) so the reducer can skip it safely.
+ */
+function flattenSignalPayload(payload: unknown): RankedSignal | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+
+  // Nested gateway shape: { signal, ranks, correlation_id?, shadowed_sources? }
+  if ("signal" in p || "ranks" in p) {
+    const signal = (p.signal && typeof p.signal === "object"
+      ? (p.signal as Record<string, unknown>)
+      : {}) as Record<string, unknown>;
+    const ranks = Array.isArray(p.ranks) ? (p.ranks as Record<string, unknown>[]) : [];
+    // Prefer the first non-shadow rank for the AI fields.
+    const rank = ranks[0] ?? {};
+    const correlation_id =
+      asString(p.correlation_id) ??
+      asString(signal.correlation_id) ??
+      asString(rank.correlation_id);
+    if (!correlation_id) return null;
+    const factors = (rank.factors && typeof rank.factors === "object"
+      ? (rank.factors as Record<string, unknown>)
+      : undefined) as RankFactors | undefined;
+    return {
+      correlation_id,
+      signal_id: asString(signal.signal_id) ?? asString(rank.signal_id),
+      strategy: asString(signal.strategy) ?? asString(rank.strategy) ?? "—",
+      symbol: asString(signal.symbol) ?? asString(rank.symbol) ?? "—",
+      side: (asString(signal.side) ?? asString(rank.side) ?? "buy") as "buy" | "sell",
+      base_probability: asNumber(signal.base_probability) ?? 0,
+      confidence: asNumber(signal.confidence) ?? 0,
+      trade_confidence_score: asNumber(rank.trade_confidence_score),
+      factors,
+      shadow: Boolean(signal.shadow ?? rank.shadow ?? false),
+      explanation: asString(rank.explanation) ?? asString(signal.explanation),
+      ts_ns: asNumber(rank.ts_ns) ?? asNumber(signal.ts_ns),
+    };
+  }
+
+  // Already-flat RankedSignal (demo-synth / direct publishers). Require a
+  // correlation_id so panels that key/slice on it never crash.
+  const correlation_id = asString(p.correlation_id);
+  if (!correlation_id) return null;
+  return {
+    correlation_id,
+    signal_id: asString(p.signal_id),
+    strategy: asString(p.strategy) ?? "—",
+    symbol: asString(p.symbol) ?? "—",
+    side: (asString(p.side) ?? "buy") as "buy" | "sell",
+    base_probability: asNumber(p.base_probability) ?? 0,
+    confidence: asNumber(p.confidence) ?? 0,
+    trade_confidence_score: asNumber(p.trade_confidence_score),
+    factors: (p.factors && typeof p.factors === "object"
+      ? (p.factors as RankFactors)
+      : undefined),
+    shadow: Boolean(p.shadow ?? false),
+    explanation: asString(p.explanation),
+    ts_ns: asNumber(p.ts_ns),
+  };
+}
+
+function asString(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+function asNumber(v: unknown): number | undefined {
+  return typeof v === "number" && !Number.isNaN(v) ? v : undefined;
 }
 
 function reduceRisk(prev: RiskSlice, ev: RiskEvent): RiskSlice {

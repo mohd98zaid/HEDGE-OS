@@ -6,11 +6,14 @@
 // cockpit needs and dispatches inbound envelopes into the matching slice.
 // There is no REST polling anywhere (R20.2).
 
+import type { ReactNode } from "react";
+
 import { useUiGatewaySocket } from "./hooks/useUiGatewaySocket";
 import { useHighVolMode } from "./hooks/useHighVolMode";
 import { useWarMode } from "./hooks/useWarMode";
 import { useCockpitStore } from "./store/cockpitStore";
 import { TradingModeToggle } from "./components/TradingModeToggle";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   AiConfidenceScores,
   AiExplanations,
@@ -29,6 +32,12 @@ import {
   SymbolPriorityControls,
   TraderStabilityScore,
 } from "./panels";
+
+/** Wrap a panel so a render crash inside it is isolated to that one tile
+ *  instead of blanking the whole cockpit. */
+function Guard({ name, children }: { name: string; children: ReactNode }): JSX.Element {
+  return <ErrorBoundary name={name}>{children}</ErrorBoundary>;
+}
 
 export default function App(): JSX.Element {
   const { sendIntent } = useUiGatewaySocket();
@@ -79,31 +88,33 @@ export default function App(): JSX.Element {
         </div>
       </header>
 
-      {/* 4-column grid on lg+, collapses cleanly to 1-col on phones (R20.3). */}
+      {/* 4-column grid on lg+, collapses cleanly to 1-col on phones (R20.3).
+          Each panel is wrapped in an ErrorBoundary so one bad frame can never
+          blank the whole cockpit. */}
       <section className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
         {/* Row 1: critical market + orderflow + execution. */}
-        <LiveMarket />
-        <OrderflowHeatmap />
-        <OptionsChain />
-        <ExecutionPanel />
+        <Guard name="Live Market"><LiveMarket /></Guard>
+        <Guard name="Orderflow Heatmap"><OrderflowHeatmap /></Guard>
+        <Guard name="Options Chain"><OptionsChain /></Guard>
+        <Guard name="Execution"><ExecutionPanel /></Guard>
 
         {/* Row 2: positions + PnL + risk + latency (critical). */}
-        <Positions />
-        <LivePnl />
-        <RiskPanel />
-        <LatencyDashboard />
+        <Guard name="Positions"><Positions /></Guard>
+        <Guard name="Live PnL"><LivePnl /></Guard>
+        <Guard name="Risk"><RiskPanel /></Guard>
+        <Guard name="Latency"><LatencyDashboard /></Guard>
 
         {/* Row 3: AI surfaces + psychology. */}
-        <AiConfidenceScores />
-        <AiExplanations />
-        <TraderStabilityScore />
-        <NewsFeed />
+        <Guard name="AI Confidence Scores"><AiConfidenceScores /></Guard>
+        <Guard name="AI Explanations"><AiExplanations /></Guard>
+        <Guard name="Trader Stability Score"><TraderStabilityScore /></Guard>
+        <Guard name="News"><NewsFeed /></Guard>
 
         {/* Row 4: ops + replay + trader controls. */}
-        <Alerts />
-        <ReplayControls sendIntent={sendIntent} />
-        <StrategyToggles sendIntent={sendIntent} />
-        <SymbolPriorityControls sendIntent={sendIntent} />
+        <Guard name="Alerts"><Alerts /></Guard>
+        <Guard name="Replay Controls"><ReplayControls sendIntent={sendIntent} /></Guard>
+        <Guard name="Strategy Toggles"><StrategyToggles sendIntent={sendIntent} /></Guard>
+        <Guard name="Symbol Priority"><SymbolPriorityControls sendIntent={sendIntent} /></Guard>
       </section>
     </main>
   );
