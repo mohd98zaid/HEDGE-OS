@@ -25,11 +25,12 @@ hedge-risk = { path = "../hedge-risk" }
 # crate (task 17.1). The Execution_Engine routes through trait
 # objects of this trait; concrete broker crates implement it.
 hedge-broker-api = { path = "../hedge-broker-api" }
-# Concrete per-broker crates are NOT direct dependencies. The binary
-# wires them in only after task 17.1 ships their implementations; until
-# then the binary uses a local placeholder `NotReady` adapter so the
-# Hot_Path purity check stays clean (no transitive `reqwest` from any
-# broker crate has to flow through `hedge-exec`'s dep graph).
+# Phase C: the Execution_Engine now wires the real Upstox (primary) and
+# Angel One (backup) adapters. These pull in `reqwest` (async, rustls) —
+# acceptable here because order submission is inherently an external-I/O
+# boundary that runs off the per-tick Hot_Path.
+hedge-broker-upstox = { path = "../hedge-broker-upstox" }
+hedge-broker-angelone = { path = "../hedge-broker-angelone" }
 
 tokio = { workspace = true }
 tracing = { workspace = true }
