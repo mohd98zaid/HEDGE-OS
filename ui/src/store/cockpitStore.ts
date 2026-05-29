@@ -248,6 +248,63 @@ const emptyWarMode = (): WarModeStatus => ({
 
 // ---------- helpers ----------------------------------------------------------
 
+/** Best-effort coercion of an inbound `/alerts` envelope into the cockpit
+ *  Alert shape. The gateway's `UiAlert` carries `{severity, source, ts_ns,
+ *  payload}` while the cockpit Alert wants `{id, severity, title, body?,
+ *  source?, ts_ns?}`. We accept either. Returns `null` for entries the
+ *  panel can't render (missing `severity` or both `title` and `payload`),
+ *  which guards against the empty-pill bug seen in early Phase A runs.
+ *  Severity values from the gateway use snake_case (`warning`, `error`)
+ *  whereas the cockpit type uses (`high`, `medium`, etc.) — map them. */
+function normaliseAlert(
+  payload: unknown,
+  subject: string | undefined,
+  ts_ns: number | undefined,
+): Alert | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  // Already-cockpit shape — keep as-is when valid.
+  if (
+    typeof p.id === "string" &&
+    typeof p.severity === "string" &&
+    typeof p.title === "string"
+  ) {
+    return p as unknown as Alert;
+  }
+  // Gateway UiAlert shape.
+  const sev = p.severity;
+  if (typeof sev !== "string") return null;
+  const severityMap: Record<string, AlertSeverity> = {
+    critical: "critical",
+    error: "high",
+    high: "high",
+    warning: "medium",
+    medium: "medium",
+    info: "info",
+    low: "low",
+  };
+  const mapped = severityMap[sev] ?? "info";
+  const source =
+    typeof p.source === "string" ? p.source : subject ?? "unknown";
+  const inner = (p.payload && typeof p.payload === "object"
+    ? (p.payload as Record<string, unknown>)
+    : null) as Record<string, unknown> | null;
+  const title =
+    (typeof p.title === "string" && p.title) ||
+    (inner && typeof inner.message === "string" ? (inner.message as string) : null) ||
+    (inner && typeof inner.reason === "string" ? (inner.reason as string) : null) ||
+    source;
+  const ts =
+    typeof p.ts_ns === "number" ? p.ts_ns : ts_ns ?? Date.now() * 1_000_000;
+  return {
+    id: `${source}-${ts}`,
+    severity: mapped,
+    title,
+    source,
+    ts_ns: ts,
+  };
+}
+
 const sortAlerts = (xs: Alert[]): Alert[] => {
   // Critical above non-critical (R20.5); within a bucket newest-first.
   const ranked = xs.slice().sort((a, b) => {
@@ -384,11 +441,14 @@ export const useCockpitStore = create<CockpitState>((set) => ({
           return { meta: stamped, news: reduceNews(s.news, env.payload as NewsImpact) };
         case "psych":
           return { meta: stamped, psych: reducePsych(s.psych, env.payload as PsychEvent) };
-        case "alerts":
+        case "alerts": {
+          const alert = normaliseAlert(env.payload, env.subject, env.ts_ns);
+          if (!alert) return { meta: stamped };
           return {
             meta: stamped,
-            alerts: { list: sortAlerts([env.payload as Alert, ...s.alerts.list]) },
+            alerts: { list: sortAlerts([alert, ...s.alerts.list]) },
           };
+        }
         case "replay":
           return {
             meta: stamped,

@@ -21,7 +21,15 @@ const TONE: Record<AlertSeverity, string> = {
 };
 
 export function Alerts(): JSX.Element {
-  const list = useCockpitStore((s) => s.alerts.list);
+  // Defensive filter: skip entries that lack the minimum fields the
+  // renderer needs. Until the gateway emits well-formed Alert envelopes
+  // for every published alert kind, malformed payloads (missing
+  // severity / id / title) would render as empty bordered pills.
+  const list = useCockpitStore((s) =>
+    s.alerts.list.filter(
+      (a) => a && typeof a.id === "string" && typeof a.severity === "string" && typeof a.title === "string",
+    ),
+  );
 
   return (
     <Panel title="Alerts" synthChannel="alerts" status={<span>{list.length} active</span>}>
@@ -32,7 +40,7 @@ export function Alerts(): JSX.Element {
           {list.slice(0, 50).map((a) => (
             <li
               key={a.id}
-              className={`rounded border px-2 py-1 text-xs ${TONE[a.severity]}`}
+              className={`rounded border px-2 py-1 text-xs ${TONE[a.severity] ?? TONE.info}`}
             >
               <div className="flex items-baseline justify-between">
                 <span className="font-semibold uppercase tracking-wider text-[10px]">

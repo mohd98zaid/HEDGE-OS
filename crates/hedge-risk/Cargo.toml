@@ -37,6 +37,7 @@ sha2 = { workspace = true }
 parking_lot = { workspace = true }
 quanta = { workspace = true }
 bytes = { workspace = true }
+futures = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

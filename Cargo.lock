@@ -1215,6 +1215,7 @@ dependencies = [
  "bytes",
  "chrono",
  "chrono-tz",
+ "futures",
  "hedge-bus",
  "hedge-config",
  "hedge-core",
