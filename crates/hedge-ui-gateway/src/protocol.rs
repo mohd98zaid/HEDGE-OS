@@ -143,6 +143,8 @@ pub enum IntentKind {
     Priority,
     /// `trader.intent.order` — manual trader order intent.
     Order,
+    /// `trader.intent.trading_mode` — switch live vs paper execution.
+    TradingMode,
 }
 
 impl IntentKind {
@@ -154,6 +156,7 @@ impl IntentKind {
             IntentKind::StrategyToggle => hedge_bus::TRADER_INTENT_STRATEGY_TOGGLE,
             IntentKind::Priority => hedge_bus::TRADER_INTENT_PRIORITY,
             IntentKind::Order => hedge_bus::TRADER_INTENT_ORDER,
+            IntentKind::TradingMode => hedge_bus::TRADER_INTENT_TRADING_MODE,
         }
     }
 }

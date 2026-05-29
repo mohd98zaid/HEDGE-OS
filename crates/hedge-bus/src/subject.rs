@@ -118,6 +118,10 @@ pub const TRADER_INTENT_STRATEGY_TOGGLE: &str = "trader.intent.strategy_toggle";
 pub const TRADER_INTENT_PRIORITY: &str = "trader.intent.priority";
 /// Trader manual-order intent subject (full subject; no parameter).
 pub const TRADER_INTENT_ORDER: &str = "trader.intent.order";
+/// Trader trading-mode intent subject (live vs paper). Full subject; no
+/// parameter. Payload `{ "live": bool }`. The Execution_Engine consumes
+/// this to switch between live broker submission and paper mode.
+pub const TRADER_INTENT_TRADING_MODE: &str = "trader.intent.trading_mode";
 
 // ops.* — Session manager / Self_Healing_Supervisor
 /// Trading-session start event subject (full subject; no parameter).

@@ -120,6 +120,12 @@ pub fn validate_intent(kind: IntentKind, payload: &Value) -> Result<(), IntentEr
                 return Err(invalid("`quantity` must be positive"));
             }
         }
+        IntentKind::TradingMode => {
+            payload
+                .get("live")
+                .and_then(Value::as_bool)
+                .ok_or_else(|| invalid("missing boolean field `live`"))?;
+        }
     }
     Ok(())
 }

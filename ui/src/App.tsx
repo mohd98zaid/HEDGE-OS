@@ -10,6 +10,7 @@ import { useUiGatewaySocket } from "./hooks/useUiGatewaySocket";
 import { useHighVolMode } from "./hooks/useHighVolMode";
 import { useWarMode } from "./hooks/useWarMode";
 import { useCockpitStore } from "./store/cockpitStore";
+import { TradingModeToggle } from "./components/TradingModeToggle";
 import {
   AiConfidenceScores,
   AiExplanations,
@@ -72,6 +73,9 @@ export default function App(): JSX.Element {
               </span>
             ) : null}
           </p>
+        </div>
+        <div className="flex items-center gap-4">
+          <TradingModeToggle sendIntent={sendIntent} />
         </div>
       </header>
 

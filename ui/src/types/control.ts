@@ -90,4 +90,8 @@ export type TraderIntent =
       limit_paise?: number;
       exchange: "NSE" | "BSE";
     }
-  | { kind: "replay"; command: ReplayCommandIntent };
+  | { kind: "replay"; command: ReplayCommandIntent }
+  /** Live/paper execution mode toggle. `live: true` requests live broker
+   *  submission; `false` (default) keeps paper mode. The Execution_Engine
+   *  is the authority — it echoes the confirmed mode on `exec.mode.confirmed`. */
+  | { kind: "trading_mode"; live: boolean };

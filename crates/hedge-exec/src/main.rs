@@ -19,6 +19,9 @@
 //! works end-to-end without risking capital. Every paper event carries
 //! `"paper": true`.
 
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use futures::StreamExt;
 use hedge_config::{defaults, HedgeConfig};
@@ -40,24 +43,59 @@ async fn main() -> Result<()> {
     let _ = init_metrics()?;
     let _config: HedgeConfig = defaults::hedge_config();
 
-    let live = std::env::var("HEDGE_EXEC_LIVE")
+    // Live/paper mode is runtime-controlled. It starts in PAPER (safe)
+    // regardless of env, and only flips to LIVE when the cockpit toggle
+    // publishes `trader.intent.trading_mode {live:true}`. The env var
+    // HEDGE_EXEC_LIVE only sets the *initial* state for headless runs.
+    let initial_live = std::env::var("HEDGE_EXEC_LIVE")
         .map(|v| v == "on" || v == "1" || v == "true")
         .unwrap_or(false);
+    let live_mode = Arc::new(AtomicBool::new(initial_live));
 
-    if live {
-        warn!(
-            target: SERVICE_NAME,
-            "HEDGE_EXEC_LIVE is set but no live broker adapter is wired in this build — \
-             refusing to place real orders. Running in PAPER mode."
-        );
-    }
-    info!(target: SERVICE_NAME, mode = "paper", "Execution_Engine starting");
+    info!(
+        target: SERVICE_NAME,
+        mode = if initial_live { "live" } else { "paper" },
+        "Execution_Engine starting"
+    );
 
     let nats_url = std::env::var("HEDGE_NATS_URL").unwrap_or_else(|_| DEFAULT_NATS_URL.to_string());
     let nats = hedge_bus::NatsClient::connect(&nats_url)
         .await
         .with_context(|| format!("connect to NATS at {}", nats_url))?;
     info!(target: SERVICE_NAME, nats_url = %nats_url, "connected to NATS");
+
+    // --- Trading-mode toggle consumer -------------------------------------
+    {
+        let mut mode_sub = nats
+            .raw()
+            .subscribe(hedge_bus::TRADER_INTENT_TRADING_MODE.to_string())
+            .await?;
+        let live_mode = Arc::clone(&live_mode);
+        let nats_ack = nats.clone();
+        tokio::spawn(async move {
+            while let Some(msg) = mode_sub.next().await {
+                let want_live = serde_json::from_slice::<Value>(msg.payload.as_ref())
+                    .ok()
+                    .and_then(|v| v.get("live").and_then(|x| x.as_bool()))
+                    .unwrap_or(false);
+                live_mode.store(want_live, Ordering::SeqCst);
+                warn!(
+                    target: SERVICE_NAME,
+                    live = want_live,
+                    "TRADING MODE CHANGED via cockpit toggle"
+                );
+                // Echo the confirmed mode so the cockpit banner can reflect
+                // the engine's authoritative state (not just optimistic UI).
+                let echo = json!({ "live": want_live, "source": "hedge-exec" });
+                if let Ok(bytes) = serde_json::to_vec(&echo) {
+                    let _ = nats_ack
+                        .raw()
+                        .publish("exec.mode.confirmed".to_string(), bytes.into())
+                        .await;
+                }
+            }
+        });
+    }
 
     let mut sub = nats
         .raw()
@@ -66,9 +104,11 @@ async fn main() -> Result<()> {
     info!(target: SERVICE_NAME, "subscribed risk.decision.approved");
 
     let nats_pub = nats.clone();
+    let live_for_consumer = Arc::clone(&live_mode);
     let consumer = tokio::spawn(async move {
         while let Some(msg) = sub.next().await {
-            if let Err(e) = handle_approval(&nats_pub, msg.payload.as_ref()).await {
+            let live = live_for_consumer.load(Ordering::SeqCst);
+            if let Err(e) = handle_approval(&nats_pub, msg.payload.as_ref(), live).await {
                 debug!(target: SERVICE_NAME, error = %e, "handle_approval error");
             }
         }
@@ -83,9 +123,14 @@ async fn main() -> Result<()> {
 }
 
 /// Handle one `risk.decision.approved` event: emit a submitted order then
-/// a simulated fill, both tagged paper-mode and carrying the approval's
-/// correlation_id (Authority_Hierarchy).
-async fn handle_approval(nats: &hedge_bus::NatsClient, bytes: &[u8]) -> Result<()> {
+/// a simulated fill, both carrying the approval's correlation_id
+/// (Authority_Hierarchy).
+///
+/// `live` reflects the cockpit toggle. When `live == true` but no live
+/// broker adapter is wired in this build, we still refuse to place a real
+/// order and fall back to paper — surfacing a loud warning. Wiring a real
+/// adapter here is the explicit, safeguarded follow-up.
+async fn handle_approval(nats: &hedge_bus::NatsClient, bytes: &[u8], live: bool) -> Result<()> {
     let v: Value = serde_json::from_slice(bytes).context("parse risk.decision.approved")?;
     let data = v.get("data").unwrap_or(&v);
 
@@ -105,14 +150,24 @@ async fn handle_approval(nats: &hedge_bus::NatsClient, bytes: &[u8]) -> Result<(
     if qty == 0 {
         return Ok(());
     }
-    // The risk decision carries no symbol today; the synth signal that
-    // produced it does. Carry an unknown symbol through gracefully — the
-    // cockpit Execution panel keys on correlation_id, not symbol.
     let symbol = data
         .get("symbol")
         .and_then(|x| x.as_str())
         .unwrap_or("UNKNOWN")
         .to_string();
+
+    // Live mode is requested but no real adapter exists in this build.
+    // Refuse the real order, drop to paper, and make the refusal visible.
+    let paper = if live {
+        warn!(
+            target: SERVICE_NAME,
+            %correlation_id,
+            "LIVE mode requested but no live broker adapter wired — order routed as PAPER"
+        );
+        true
+    } else {
+        true
+    };
 
     let now_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
     let broker_order_id = format!("PAPER-{:08x}", (now_ns as u64) & 0xFFFF_FFFF);
@@ -128,7 +183,7 @@ async fn handle_approval(nats: &hedge_bus::NatsClient, bytes: &[u8]) -> Result<(
             "filled_qty": 0,
             "ts_ns": now_ns,
         },
-        "paper": true,
+        "paper": paper,
     });
     publish(nats, "exec.order.submitted", &submitted).await;
 
@@ -146,7 +201,7 @@ async fn handle_approval(nats: &hedge_bus::NatsClient, bytes: &[u8]) -> Result<(
             "avg_fill_paise": Value::Null,
             "ts_ns": fill_ns,
         },
-        "paper": true,
+        "paper": paper,
     });
     let fill_subject = format!("exec.fill.{}", symbol);
     publish(nats, &fill_subject, &fill).await;
