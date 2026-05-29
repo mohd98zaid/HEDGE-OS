@@ -1037,7 +1037,9 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "dashmap",
+ "futures",
  "hedge-broker-api",
  "hedge-bus",
  "hedge-config",
@@ -1047,6 +1049,8 @@ dependencies = [
  "hedge-schemas",
  "parking_lot",
  "proptest",
+ "serde",
+ "serde_json",
  "smallvec",
  "thiserror 1.0.50",
  "tokio",

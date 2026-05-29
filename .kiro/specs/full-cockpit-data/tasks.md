@@ -129,7 +129,7 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 
 ### Execution_Engine
 
-- [ ] C.3 hedge-exec Upstox order submission — subscribe `risk.decision.approved`, submit via existing `hedge-broker-upstox` adapter, publish `exec.order.submitted` with same `correlation_id` — files: `crates/hedge-exec/src/main.rs`, `crates/hedge-exec/src/router.rs` — references: REQ-7.1, REQ-7.2, REQ-11.1, REQ-11.2
+- [x] C.3 hedge-exec Upstox order submission — subscribe `risk.decision.approved`, submit via existing `hedge-broker-upstox` adapter, publish `exec.order.submitted` with same `correlation_id` — files: `crates/hedge-exec/src/main.rs`, `crates/hedge-exec/src/router.rs` — references: REQ-7.1, REQ-7.2, REQ-11.1, REQ-11.2
 
 - [ ] C.4 hedge-exec Angel One backup + failover — complete `hedge-broker-angelone` adapter beyond stub; on Upstox 5xx/timeout, fail over and publish `exec.broker.failover`; reject on 4xx with `exec.order.rejected` — files: `crates/hedge-broker-angelone/src/lib.rs`, `crates/hedge-exec/src/router.rs` — references: REQ-7.4, REQ-7.5
 

@@ -39,6 +39,10 @@ thiserror = { workspace = true }
 dashmap = { workspace = true }
 parking_lot = { workspace = true }
 smallvec = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+futures = { workspace = true }
 # `async-trait` is required because the `BrokerAdapter` trait is used
 # behind `Arc<dyn BrokerAdapter>` in the router and engine. Native
 # `async fn in trait` is stable in 1.75 but does not yet support dyn
