@@ -1225,6 +1225,7 @@ dependencies = [
  "parking_lot",
  "proptest",
  "quanta",
+ "redis",
  "serde",
  "serde_json",
  "sha2",

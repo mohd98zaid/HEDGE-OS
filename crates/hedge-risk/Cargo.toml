@@ -38,6 +38,7 @@ parking_lot = { workspace = true }
 quanta = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
+redis = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

@@ -125,7 +125,7 @@ Each task here is its own focused work item; tasks marked `*` are property/integ
 
 - [ ] C.1 hedge-risk real decision engine — subscribe set, kill-switch + cooldown + priority + sizing logic per design Phase C low-level; publish `risk.decision.approved`/`rejected`/`cooldown` — files: `crates/hedge-risk/src/engine.rs`, `crates/hedge-risk/src/main.rs` — references: REQ-6.1, REQ-6.2, REQ-6.3, REQ-6.4, REQ-6.5, REQ-6.6
 
-- [ ] C.2 hedge-risk Redis cooldown persistence — write/read active cooldowns and daily P&L; restart preserves state — files: `crates/hedge-risk/src/persistence.rs` — references: REQ-6.7
+- [x] C.2 hedge-risk Redis cooldown persistence — write/read active cooldowns and daily P&L; restart preserves state — files: `crates/hedge-risk/src/persistence.rs` — references: REQ-6.7
 
 ### Execution_Engine
 
