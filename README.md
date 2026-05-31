@@ -253,6 +253,19 @@ Failover: when the primary broker's error rate or latency exceeds threshold, the
 
 ---
 
+## Binance Crypto Module (Additive)
+
+While the core system is heavily optimized for the Indian Stock Market, an additive Python-based module exists for Binance Spot trading (`python/binance_module`).
+
+**Features:**
+- Runs its own 5-service pipeline (Feed, Strategy, Risk, Exec, Position) independent of the Rust Hot_Path.
+- Communicates over the same NATS and Redis infrastructure.
+- Deploys as a self-contained unit using `start-binance.bat` or the included All-In-One `Dockerfile`.
+- Uses an auto-reconciliation mechanism to handle Binance's 0.1% dust fee deductions during sell orders.
+- Enforces strict constraints like LONG-ONLY and max-open-order limits.
+
+---
+
 ## Observability
 
 | Tool | Purpose | URL |
