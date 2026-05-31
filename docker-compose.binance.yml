@@ -1,0 +1,110 @@
+# PROJECT HEDGE — Binance Crypto Module (additive compose file)
+#
+# Usage (run alongside the main system):
+#   docker compose -f docker-compose.yml -f docker-compose.binance.yml \
+#       --profile infra --profile binance up -d
+#
+# Or via start-binance.bat which handles everything automatically.
+#
+# This file ONLY adds new services tagged with profile "binance".
+# It does NOT modify any existing Indian-stock services.
+#
+# Prometheus metrics ports:
+#   binance-feed      :9300
+#   binance-risk      :9301
+#   binance-strategy  :9302
+#   binance-exec      :9303
+#   binance-position  :9304
+
+name: project-hedge
+
+x-binance-defaults: &binance-defaults
+  restart: unless-stopped
+  networks:
+    - hedge-net
+  environment:
+    - PYTHONUNBUFFERED=1
+    # Shared infra (same containers as Indian stock system)
+    - HEDGE_NATS_URL=nats://nats:4222
+    - HEDGE_REDIS_URL=redis://redis:6379
+    # Binance credentials (injected from .env.binance)
+    - BINANCE_API_KEY=${BINANCE_API_KEY:-}
+    - BINANCE_API_SECRET=${BINANCE_API_SECRET:-}
+    - BINANCE_TESTNET=${BINANCE_TESTNET:-true}
+    - BINANCE_SYMBOLS=${BINANCE_SYMBOLS:-BTCUSDT,ETHUSDT,BNBUSDT,SOLUSDT,XRPUSDT}
+    - BINANCE_TRADE_TYPE=${BINANCE_TRADE_TYPE:-spot}
+    - BINANCE_MAX_POSITION_USDT=${BINANCE_MAX_POSITION_USDT:-500}
+    - BINANCE_DAILY_LOSS_LIMIT=${BINANCE_DAILY_LOSS_LIMIT:-100}
+    - BINANCE_MAX_OPEN_ORDERS=${BINANCE_MAX_OPEN_ORDERS:-5}
+    - BINANCE_QTY_USDT=${BINANCE_QTY_USDT:-50}
+    - TZ=Asia/Kolkata
+
+x-binance-build: &binance-build
+  context: .
+  args:
+    BINANCE_BASE: "hedge/binance-base:dev"
+
+services:
+
+  # ── Shared base image (build once) ─────────────────────────────────────────
+  binance-base:
+    profiles: ["binance"]
+    build:
+      context: .
+      dockerfile: docker/binance/Dockerfile.base
+      args:
+        PYTHON_VERSION: "3.11"
+    image: hedge/binance-base:dev
+    command: ["true"]
+    networks:
+      - hedge-net
+
+  # ── Binance Market-Data Feed ────────────────────────────────────────────────
+  binance-feed:
+    <<: *binance-defaults
+    profiles: ["binance"]
+    build:
+      <<: *binance-build
+      dockerfile: docker/binance/Dockerfile.feed
+    image: hedge/binance-feed:dev
+    depends_on: [nats, redis, binance-base]
+
+  # ── Binance Risk Guard ──────────────────────────────────────────────────────
+  binance-risk:
+    <<: *binance-defaults
+    profiles: ["binance"]
+    build:
+      <<: *binance-build
+      dockerfile: docker/binance/Dockerfile.risk
+    image: hedge/binance-risk:dev
+    depends_on: [nats, binance-feed]
+
+  # ── Binance Strategy Engine ─────────────────────────────────────────────────
+  binance-strategy:
+    <<: *binance-defaults
+    profiles: ["binance"]
+    build:
+      <<: *binance-build
+      dockerfile: docker/binance/Dockerfile.strategy
+    image: hedge/binance-strategy:dev
+    depends_on: [nats, binance-feed]
+
+  # ── Binance Order Execution Engine ──────────────────────────────────────────
+  binance-exec:
+    <<: *binance-defaults
+    profiles: ["binance"]
+    build:
+      <<: *binance-build
+      dockerfile: docker/binance/Dockerfile.exec
+    image: hedge/binance-exec:dev
+    depends_on: [nats, binance-risk, binance-strategy]
+
+  # ── Binance Position Tracker ─────────────────────────────────────────────────
+  binance-position:
+    <<: *binance-defaults
+    profiles: ["binance"]
+    build:
+      <<: *binance-build
+      dockerfile: docker/binance/Dockerfile.position
+    image: hedge/binance-position:dev
+    depends_on: [nats, binance-exec]

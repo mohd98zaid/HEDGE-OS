@@ -1,0 +1,4 @@
+# syntax=docker/dockerfile:1.7
+ARG BINANCE_BASE=hedge/binance-base:dev
+FROM ${BINANCE_BASE}
+CMD ["binance-position"]

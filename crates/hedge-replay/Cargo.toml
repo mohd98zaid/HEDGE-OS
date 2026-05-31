@@ -49,6 +49,7 @@ hedge-core    = { path = "../hedge-core" }
 hedge-bus     = { path = "../hedge-bus" }
 hedge-schemas = { path = "../hedge-schemas" }
 hedge-config  = { path = "../hedge-config" }
+flatbuffers   = { workspace = true }
 
 tokio              = { workspace = true }
 async-nats         = { workspace = true }

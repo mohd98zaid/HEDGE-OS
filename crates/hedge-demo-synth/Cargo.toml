@@ -11,8 +11,13 @@ description = "Demo / dev synthetic publisher: deterministic JSON on every cockp
 name = "hedge-demo-synth"
 path = "src/main.rs"
 
+[[bin]]
+name = "hedge-upstox-import"
+path = "src/bin/upstox-import.rs"
+
 [dependencies]
 hedge-bus = { path = "../hedge-bus" }
+hedge-replay = { path = "../hedge-replay" }
 hedge-config = { path = "../hedge-config" }
 hedge-obs = { path = "../hedge-obs" }
 
@@ -25,3 +30,5 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 futures = { workspace = true }
+reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
+rand = "0.8"

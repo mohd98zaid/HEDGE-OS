@@ -30,6 +30,7 @@ Thumbs.db
 .env
 .env.local
 .env.production
+.env.binance
 /etc/hedge/local.yaml
 
 # Docker override (local dev only — disables NATS auth)
@@ -47,6 +48,10 @@ replay/
 # Logs
 *.log
 gateway_*.txt
+logs/binance/
+
+# Binance helper scripts
+_launch_binance_service.cmd
 
 # NATS — generated operator/account JWT artefacts. The committed files
 # are placeholders; running docker/nats/provision-creds.sh produces real

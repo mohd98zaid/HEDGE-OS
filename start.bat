@@ -40,12 +40,16 @@ if /i "%HEDGE_MODE%"=="synthetic" (
     set "HEDGE_MODE=synthetic"
 ) else if /i "%HEDGE_MODE%"=="demo" (
     set "HEDGE_MODE=synthetic"
+) else if /i "%HEDGE_MODE%"=="replay" (
+    set "HEDGE_MODE=replay"
 ) else (
     set "HEDGE_MODE=real"
 )
 
 if /i "%HEDGE_MODE%"=="synthetic" (
     set "RUN_REAL_PIPELINE=0"
+) else if /i "%HEDGE_MODE%"=="replay" (
+    set "RUN_REAL_PIPELINE=1"
 ) else (
     set "RUN_REAL_PIPELINE=1"
 )
@@ -56,6 +60,8 @@ echo   PROJECT HEDGE - Ordered Startup
 echo   MODE: %HEDGE_MODE%
 if /i "%HEDGE_MODE%"=="synthetic" (
     echo   ^> Dashboard will be filled with SYNTHETIC data.
+) else if /i "%HEDGE_MODE%"=="replay" (
+    echo   ^> Dashboard will be filled with HISTORICAL REPLAY data.
 ) else (
     echo   ^> Dashboard will show REAL data ^(needs token / market hours^).
 )
@@ -111,6 +117,15 @@ if not exist "target\release\hedge-demo-synth.exe" (
         exit /b 1
     )
 )
+if not exist "target\release\hedge-replay.exe" (
+    echo  [INFO] Building hedge-replay...
+    cargo build --release -p hedge-replay --bin hedge-replay
+    if errorlevel 1 (
+        echo  [ERROR] Build of hedge-replay failed.
+        pause
+        exit /b 1
+    )
+)
 
 REM --- Load .env (key=value lines, skip comments) ---
 if exist .env (
@@ -124,6 +139,9 @@ REM  This MUST run after the .env load so the chosen mode always wins over any
 REM  HEDGE_DEMO_SYNTH / HEDGE_WARM_AI value that happens to be in .env.
 if /i "%HEDGE_MODE%"=="synthetic" (
     set "HEDGE_DEMO_SYNTH=on"
+    set "HEDGE_WARM_AI=off"
+) else if /i "%HEDGE_MODE%"=="replay" (
+    set "HEDGE_DEMO_SYNTH=off"
     set "HEDGE_WARM_AI=off"
 ) else (
     set "HEDGE_DEMO_SYNTH=off"
@@ -187,7 +205,11 @@ echo.
 echo  [3/5] Starting Hot_Path pipeline (in dependency order)...
 
 echo        [a] Market Data Engine (Upstox REST poller)...
-start "HEDGE-market-data" cmd /k target\release\upstox-feed.exe
+if /i "%HEDGE_MODE%" NEQ "replay" (
+    start "HEDGE-market-data" cmd /k target\release\upstox-feed.exe
+) else (
+    echo            [Skipping in replay mode - data comes from hedge-replay]
+)
 timeout /t 3 /nobreak >nul
 
 echo        [b] Orderflow Engine...
@@ -284,6 +306,13 @@ echo  [3.5] Demo Synth skipped (HEDGE_DEMO_SYNTH=%HEDGE_DEMO_SYNTH%).
 echo.
 
 REM ============================================================
+REM  STEP 3.8: Replay (historical data) skipped here, moved to end.
+REM ============================================================
+:skip_replay
+echo.
+
+
+REM ============================================================
 REM  STEP 4: UI Gateway (needs NATS + publishers)
 REM ============================================================
 echo  [4/5] Starting UI Gateway...
@@ -315,6 +344,10 @@ if /i "%HEDGE_MODE%"=="synthetic" (
     echo   Synthetic mode: every panel is filled by the deterministic
     echo   Demo Synth publisher. No broker token or market hours needed.
     echo   Hot_Path engines and Warm_AI are intentionally NOT running.
+) else if /i "%HEDGE_MODE%"=="replay" (
+    echo   Replay mode: historical session %HEDGE_REPLAY_SESSION% is being
+    echo   replayed. No live broker token or market hours needed.
+    echo   Hot_Path engines and Warm_AI are intentionally NOT running.
 ) else (
     echo   Real mode: data flows through the live Hot_Path pipeline:
     echo     Market Data -^> Orderflow -^> Features -^> Signals
@@ -323,6 +356,41 @@ if /i "%HEDGE_MODE%"=="synthetic" (
 )
 echo.
 echo   Services:
+echo     UI Gateway           : ws://localhost:8088
+echo     Demo Synth           : %HEDGE_DEMO_SYNTH%
+echo     Warm_AI Pipeline     : %HEDGE_WARM_AI%
+if "%RUN_REAL_PIPELINE%"=="1" (
+    echo     Session Controller   : running (09:15-15:30 IST gate)
+    echo     Supervisor           : running (self-healing)
+    echo     Upstox Feed          : REST polling, 500ms LTP / 2s book
+)
+echo     (Replay is an inspector CLI: hedge-replay.exe list ^| info ^| dump)
+echo.
+echo   Dashboards:
+echo     Cockpit UI           : http://localhost:5173
+echo     Grafana              : http://localhost:3000  (admin / hedge)
+echo     NATS Monitor         : http://localhost:8222
+echo     Jaeger Traces        : http://localhost:16686
+echo     Prometheus           : http://localhost:9090
+echo.
+echo  ============================================================
+
+if /i "%HEDGE_MODE%"=="replay" (
+    if not "%HEDGE_REPLAY_SESSION%"=="" (
+        echo.
+        echo ======================================================================
+        echo  READY FOR REPLAY
+        echo  1. Open your dashboard at http://localhost:5173/
+        echo  2. Wait until it has loaded and connected successfully
+        echo  3. Press any key below to blast the historical data into the system
+        echo ======================================================================
+        pause
+        echo  Starting Historical Replay for session %HEDGE_REPLAY_SESSION% at x10 speed...
+        start "HEDGE-replay" cmd /k target\release\hedge-replay.exe play %HEDGE_REPLAY_SESSION% x10
+    )
+)
+
+echo   Press any key to STOP all services and exit...
 echo     UI Gateway           : ws://localhost:8088
 echo     Demo Synth           : %HEDGE_DEMO_SYNTH%
 echo     Warm_AI Pipeline     : %HEDGE_WARM_AI%
@@ -358,6 +426,7 @@ taskkill /fi "WINDOWTITLE eq HEDGE-regime*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-news*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-rank*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-demo-synth*" /f >nul 2>&1
+taskkill /fi "WINDOWTITLE eq HEDGE-replay*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-position*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-exec*" /f >nul 2>&1
 taskkill /fi "WINDOWTITLE eq HEDGE-risk*" /f >nul 2>&1

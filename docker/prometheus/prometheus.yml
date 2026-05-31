@@ -40,3 +40,17 @@ scrape_configs:
           - "hedge-governance:9200"
           - "hedge-shadow:9200"
           - "hedge-rag:9200"
+
+  # Binance Crypto Module — separate services on :930x ports
+  # These services only run when start-binance.bat is active.
+  # Scrape failures are silently skipped (allow_missing_targets: true
+  # is the Prometheus default for static_configs).
+  - job_name: binance-crypto
+    static_configs:
+      - targets:
+          - "host.docker.internal:9300"   # binance-feed
+          - "host.docker.internal:9301"   # binance-risk
+          - "host.docker.internal:9302"   # binance-strategy
+          - "host.docker.internal:9303"   # binance-exec
+          - "host.docker.internal:9304"   # binance-position
+

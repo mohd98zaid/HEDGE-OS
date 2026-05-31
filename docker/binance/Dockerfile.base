@@ -1,0 +1,28 @@
+# syntax=docker/dockerfile:1.7
+# Binance Crypto Module — shared Python base image.
+# Mirrors the pattern of docker/warm_ai/Dockerfile.base but installs
+# python/binance_module instead of python/hedge_warm_ai.
+# Does NOT depend on hedge/warm-ai-base.
+
+ARG PYTHON_VERSION=3.11
+FROM python:${PYTHON_VERSION}-slim-bookworm AS binance-base
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates tini curl \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10200 --no-create-home binance
+
+WORKDIR /opt/binance
+COPY python/binance_module/pyproject.toml /opt/binance/pyproject.toml
+COPY python/binance_module/README.md      /opt/binance/README.md
+COPY python/binance_module/src            /opt/binance/src
+RUN pip install --no-cache-dir .
+
+USER binance
+ENTRYPOINT ["/usr/bin/tini", "--"]

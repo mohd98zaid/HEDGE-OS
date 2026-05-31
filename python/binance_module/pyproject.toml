@@ -1,0 +1,69 @@
+[build-system]
+requires = ["hatchling>=1.21"]
+build-backend = "hatchling.build"
+
+[project]
+name = "hedge-binance"
+version = "0.1.0"
+description = "PROJECT HEDGE — Binance Crypto Module: Feed, Risk, Strategy, Execution, Position."
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "Proprietary" }
+authors = [{ name = "PROJECT HEDGE" }]
+keywords = ["trading", "crypto", "binance", "websocket", "async"]
+classifiers = [
+  "Programming Language :: Python :: 3.11",
+  "Private :: Do Not Upload",
+]
+
+dependencies = [
+  # WebSocket + HTTP
+  "websockets>=12.0,<14.0",
+  "httpx>=0.27,<1.0",
+  # Crypto HMAC signing
+  "cryptography>=42.0,<44.0",
+  # Messaging + storage (shares the same infra Docker services)
+  "nats-py>=2.7,<3.0",
+  "redis>=5.0,<6.0",
+  "asyncpg>=0.29,<0.31",
+  # Data
+  "numpy>=1.26,<2.2",
+  "pandas>=2.2,<3.0",
+  # Config + schema
+  "pydantic>=2.7,<3.0",
+  "pydantic-settings>=2.3,<3.0",
+  "PyYAML>=6.0,<7.0",
+  # Observability
+  "prometheus-client>=0.20,<1.0",
+  "structlog>=24.1,<25.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2,<9.0",
+  "pytest-asyncio>=0.23,<1.0",
+  "ruff>=0.5,<1.0",
+  "mypy>=1.10,<2.0",
+]
+
+[project.scripts]
+binance-feed      = "hedge_binance.feed.service:main"
+binance-risk      = "hedge_binance.risk.service:main"
+binance-strategy  = "hedge_binance.strategy.service:main"
+binance-exec      = "hedge_binance.execution.service:main"
+binance-position  = "hedge_binance.position.service:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/hedge_binance"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-ra"
