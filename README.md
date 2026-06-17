@@ -462,6 +462,12 @@ The `hedge-supervisor` detects and recovers from:
 
 ---
 
+## Data Files & Repository Size
+
+To keep the repository lightweight, large data files (like `*.csv` market data dumps, `.coverage` reports, and generated UI test screenshots) are intentionally ignored by Git. If you need test market data, please run the canonical generator scripts.
+
+---
+
 ## License
 
 Proprietary. All rights reserved.

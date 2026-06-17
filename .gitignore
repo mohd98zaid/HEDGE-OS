@@ -60,3 +60,12 @@ docker/nats/generated/
 
 # Ruff cache
 .ruff_cache/
+
+# Data and generated files (ignored to prevent repo bloat)
+*.csv
+.coverage
+screenshot_puppeteer.png
+synthetic_test.png
+ui/dom_output*.html
+test_puppeteer.js
+node_modules/
