@@ -237,7 +237,7 @@ async fn run_warmode_subscriber(engine: Arc<SignalEngine>, nats: NatsClient) -> 
 ///  candle_structure u8 | breakout_pressure f32 | compression_zone f32 |
 ///  liquidity_sweep f32 | ts_ns u64`.
 fn decode_feature_snapshot(bytes: &[u8]) -> Option<FeatureSnapshot> {
-    const WIRE_SIZE: usize = 16 + 4 + 4 * 8 + 3 * 4 + 8 + 2 * 4 + 1 + 3 * 4 + 8;
+    const WIRE_SIZE: usize = 141;
     if bytes.len() != WIRE_SIZE {
         return None;
     }
@@ -247,6 +247,8 @@ fn decode_feature_snapshot(bytes: &[u8]) -> Option<FeatureSnapshot> {
     offset += 16;
     let symbol = u32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?);
     offset += 4;
+    let price = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
+    offset += 8;
     let vwap = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
     offset += 8;
     let atr = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
@@ -255,12 +257,22 @@ fn decode_feature_snapshot(bytes: &[u8]) -> Option<FeatureSnapshot> {
     offset += 8;
     let ema_slow = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
     offset += 8;
+    let ema_trend = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
+    offset += 8;
     let ema_slope = f32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?);
     offset += 4;
     let realized_vol = f32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?);
     offset += 4;
     let momentum = f32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?);
     offset += 4;
+    let rsi = f32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?);
+    offset += 4;
+    let adx = f32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?);
+    offset += 4;
+    let donchian_upper = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
+    offset += 8;
+    let donchian_lower = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
+    offset += 8;
     let rolling_delta = i64::from_le_bytes(bytes[offset..offset + 8].try_into().ok()?);
     offset += 8;
     let liquidity_imbalance = f32::from_le_bytes(bytes[offset..offset + 4].try_into().ok()?);
@@ -282,13 +294,19 @@ fn decode_feature_snapshot(bytes: &[u8]) -> Option<FeatureSnapshot> {
     Some(FeatureSnapshot {
         correlation_id,
         symbol,
+        price,
         vwap,
         atr,
         ema_fast,
         ema_slow,
+        ema_trend,
         ema_slope,
         realized_vol,
         momentum,
+        rsi,
+        adx,
+        donchian_upper,
+        donchian_lower,
         rolling_delta,
         liquidity_imbalance,
         orderflow_strength,
@@ -311,13 +329,19 @@ mod tests {
         let snap = FeatureSnapshot {
             correlation_id: [0xAAu8; 16],
             symbol: 7,
+            price: 100_00,
             vwap: 100_00,
             atr: 50,
             ema_fast: 100_05,
             ema_slow: 99_95,
+            ema_trend: 99_00,
             ema_slope: 0.5,
             realized_vol: 0.001,
             momentum: 0.01,
+            rsi: 60.0,
+            adx: 30.0,
+            donchian_upper: 101_00,
+            donchian_lower: 99_00,
             rolling_delta: 5,
             liquidity_imbalance: 0.2,
             orderflow_strength: 0.3,
@@ -332,10 +356,12 @@ mod tests {
         let decoded = decode_feature_snapshot(raw.as_slice()).expect("decode");
         assert_eq!(decoded.correlation_id, snap.correlation_id);
         assert_eq!(decoded.symbol, snap.symbol);
+        assert_eq!(decoded.price, snap.price);
         assert_eq!(decoded.vwap, snap.vwap);
         assert_eq!(decoded.atr, snap.atr);
         assert_eq!(decoded.ema_fast, snap.ema_fast);
         assert_eq!(decoded.ema_slow, snap.ema_slow);
+        assert_eq!(decoded.ema_trend, snap.ema_trend);
         assert!((decoded.ema_slope - snap.ema_slope).abs() < f32::EPSILON);
         assert!((decoded.realized_vol - snap.realized_vol).abs() < f32::EPSILON);
         assert_eq!(decoded.candle_structure, snap.candle_structure);

@@ -2,6 +2,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { paiseToInr, tsAgo } from "../lib/format";
 
 export function ExecutionPanel(): JSX.Element {
@@ -22,7 +23,7 @@ export function ExecutionPanel(): JSX.Element {
         </div>
       ) : null}
       {recent.length === 0 ? (
-        <p className="text-slate-500">No exec activity yet.</p>
+        <EmptyState isEngineBacked />
       ) : (
         <ul className="font-mono text-[11px] space-y-[2px] max-h-64 overflow-y-auto">
           {recent.slice(0, 30).map((e, i) => {

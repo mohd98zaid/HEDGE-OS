@@ -314,7 +314,7 @@ mod tests {
         };
         let ev_msg: ServerMsg = serde_json::from_str(&s).unwrap();
         match ev_msg {
-            ServerMsg::Event { channel, payload } => {
+            ServerMsg::Event { channel, payload, .. } => {
                 assert_eq!(channel, Channel::Risk);
                 assert_eq!(payload["id"], 1);
             }

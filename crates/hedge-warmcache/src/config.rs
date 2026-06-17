@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 
 /// Configuration for the WarmCache. Newtype around
 /// [`hedge_config::WarmCacheConfig`].
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct WarmCacheConfig(pub hedge_config::WarmCacheConfig);
 
@@ -58,11 +58,7 @@ impl From<hedge_config::WarmCacheConfig> for WarmCacheConfig {
     }
 }
 
-impl Default for WarmCacheConfig {
-    fn default() -> Self {
-        Self(hedge_config::WarmCacheConfig::default())
-    }
-}
+
 
 #[cfg(test)]
 mod tests {

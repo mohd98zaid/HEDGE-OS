@@ -93,23 +93,23 @@ class OllamaModelEndpoint:
 # ``hedge_warm_ai.config.HedgeConfig``.
 
 _DEFAULT_QWEN: Final = OllamaModelEndpoint(
-    base_url="http://ollama-qwen:11434",
-    model="qwen2.5:14b-instruct-q4_K_M",
+    base_url="http://host.docker.internal:11434",
+    model="gemma4:31b-cloud",
     timeout_s=30.0,
 )
 _DEFAULT_MISTRAL: Final = OllamaModelEndpoint(
-    base_url="http://ollama-mistral:11434",
-    model="mistral:7b-instruct-q4_K_M",
+    base_url="http://host.docker.internal:11434",
+    model="gemma4:31b-cloud",
     timeout_s=10.0,
 )
 _DEFAULT_DEEPSEEK: Final = OllamaModelEndpoint(
-    base_url="http://ollama-deepseek:11434",
-    model="deepseek-r1:7b-q4_K_M",
+    base_url="http://host.docker.internal:11434",
+    model="gemma4:31b-cloud",
     timeout_s=60.0,
 )
 _DEFAULT_PHI: Final = OllamaModelEndpoint(
-    base_url="http://ollama-phi:11434",
-    model="phi3:mini-q4_K_M",
+    base_url="http://host.docker.internal:11434",
+    model="gemma4:31b-cloud",
     timeout_s=5.0,
 )
 

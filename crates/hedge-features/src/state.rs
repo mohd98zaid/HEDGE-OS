@@ -52,6 +52,18 @@ pub const EMA_FAST_PERIOD: usize = 9;
 /// EMA slow period (R3.1: EMA slow = 21). Used by [`crate::incremental::ema`].
 pub const EMA_SLOW_PERIOD: usize = 21;
 
+/// EMA trend period (V2: EMA = 5000 for tick data). Used by [`crate::incremental::ema`].
+pub const EMA_TREND_PERIOD: usize = 5000;
+
+/// RSI period (scaled for tick data).
+pub const RSI_WINDOW: usize = 1400;
+
+/// ADX period (scaled for tick data).
+pub const ADX_WINDOW: usize = 1400;
+
+/// Donchian channel period (scaled for tick data).
+pub const DONCHIAN_WINDOW: usize = 2000;
+
 /// EMA slope lookback in samples (design: slope over the last 5 EMA samples).
 pub const EMA_SLOPE_LOOKBACK: usize = 5;
 
@@ -152,18 +164,44 @@ pub struct FeatureState {
     /// Per-tick rolling low; pair with [`bar_high_paise`].
     pub bar_low_paise: i64,
 
-    // ---- EMA fast / slow / slope ----------------------------------------
+    // ---- EMA fast / slow / trend / slope ----------------------------------------
     /// Last EMA(9) value, in paise. `0` until [`crate::incremental::ema`]
     /// has been seeded.
     pub ema_fast_paise: i64,
     /// Last EMA(21) value, in paise.
     pub ema_slow_paise: i64,
+    /// Last EMA(50) value, in paise.
+    pub ema_trend_paise: i64,
+    /// High-precision f64 accumulator for EMA(9) recurrence.
+    /// Avoids cumulative rounding drift from per-step i64 round-trips.
+    pub ema_fast_acc: f64,
+    /// High-precision f64 accumulator for EMA(21) recurrence.
+    pub ema_slow_acc: f64,
+    /// High-precision f64 accumulator for EMA(50) recurrence.
+    pub ema_trend_acc: f64,
     /// Has EMA fast been seeded with at least one observation?
     pub ema_fast_seeded: bool,
     /// Has EMA slow been seeded with at least one observation?
     pub ema_slow_seeded: bool,
+    /// Has EMA trend been seeded with at least one observation?
+    pub ema_trend_seeded: bool,
     /// Last 5 EMA(fast) samples for the slope computation.
     pub ema_fast_history: RingWindow<i64, EMA_SLOPE_LOOKBACK>,
+    
+    // ---- RSI --------------------------------------------------------
+    pub rsi_avg_gain: f64,
+    pub rsi_avg_loss: f64,
+    pub rsi_value: f32,
+
+    // ---- ADX --------------------------------------------------------
+    pub adx_smoothed_tr: f64,
+    pub adx_smoothed_pdm: f64,
+    pub adx_smoothed_ndm: f64,
+    pub adx_smoothed_dx: f64,
+    pub adx_value: f32,
+
+    // ---- Donchian ---------------------------------------------------
+    pub donchian_prices: RingWindow<i64, DONCHIAN_WINDOW>,
 
     // ---- Momentum --------------------------------------------------------
     /// Last 10 LTP samples for the momentum calculation.
@@ -229,9 +267,23 @@ impl Default for FeatureState {
             bar_low_paise: 0,
             ema_fast_paise: 0,
             ema_slow_paise: 0,
+            ema_trend_paise: 0,
+            ema_fast_acc: 0.0,
+            ema_slow_acc: 0.0,
+            ema_trend_acc: 0.0,
             ema_fast_seeded: false,
             ema_slow_seeded: false,
+            ema_trend_seeded: false,
             ema_fast_history: RingWindow::new(),
+            rsi_avg_gain: 0.0,
+            rsi_avg_loss: 0.0,
+            rsi_value: 0.0,
+            adx_smoothed_tr: 0.0,
+            adx_smoothed_pdm: 0.0,
+            adx_smoothed_ndm: 0.0,
+            adx_smoothed_dx: 0.0,
+            adx_value: 0.0,
+            donchian_prices: RingWindow::new(),
             momentum_prices: RingWindow::new(),
             log_returns: RingWindow::new(),
             delta_samples: RingWindow::new(),

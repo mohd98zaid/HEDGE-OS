@@ -119,7 +119,7 @@ fn run(args: Args) -> Result<(), String> {
             Ok(())
         }
         Args::Info { dir, session_id } => {
-            let reader = SegmentReader::open_session(&dir, session_id)
+            let reader = SegmentReader::open_session(dir, session_id)
                 .map_err(|e| format!("open session: {e}"))?;
             let segments = reader.segment_count();
             let all = reader
@@ -139,7 +139,7 @@ fn run(args: Args) -> Result<(), String> {
             Ok(())
         }
         Args::Dump { dir, session_id } => {
-            let reader = SegmentReader::open_session(&dir, session_id)
+            let reader = SegmentReader::open_session(dir, session_id)
                 .map_err(|e| format!("open session: {e}"))?;
             let all = reader
                 .read_all()
@@ -339,7 +339,7 @@ async fn run_play(dir: PathBuf, session_id: u64, speed: hedge_config::ReplaySpee
                 // For now, let's just publish to "exec.fill.0" since it's hard to get sym without the specific Fill schema, or we'll get compilation error.
                 subjects::exec_fill::<()>(SymbolId::new(0)).into_string() // Fallback
             }
-            RecordKind::AIDecision(source) => {
+            RecordKind::AIDecision(_source) => {
                 // We'd parse the json to get the exact subject.
                 // Or we can just fallback to the ai category if we can't extract symbol.
                 "ai.replay".to_string()

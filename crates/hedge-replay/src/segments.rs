@@ -191,12 +191,12 @@ impl SegmentWriter {
     fn open_next_segment(&mut self) -> IoResult<()> {
         self.active_segment_idx = self.active_segment_idx.saturating_add(1);
         let dir = self.session_dir();
-        fs::create_dir_all(&dir)?;
+        fs::create_dir_all(dir)?;
         let path = self.active_path();
         let file = OpenOptions::new()
             .create_new(true)
             .write(true)
-            .open(&path)?;
+            .open(path)?;
         self.active_file = Some(BufWriter::new(file));
         self.active_bytes = 0;
         Ok(())

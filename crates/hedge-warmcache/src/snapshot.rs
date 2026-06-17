@@ -72,9 +72,7 @@ impl NewsImpactSnapshot {
 
 #[inline]
 fn clamp(v: f32, lo: f32, hi: f32) -> f32 {
-    if v.is_nan() {
-        lo
-    } else if v < lo {
+    if v.is_nan() || v < lo {
         lo
     } else if v > hi {
         hi

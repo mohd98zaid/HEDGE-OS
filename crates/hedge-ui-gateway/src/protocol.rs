@@ -212,6 +212,12 @@ pub enum ServerMsg {
     Event {
         /// Channel this event belongs to.
         channel: Channel,
+        /// Optional NATS subject to help routing.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        subject: Option<String>,
+        /// Optional timestamp.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        ts_ns: Option<u64>,
         /// JSON payload (per-channel shape; opaque to the gateway).
         payload: Value,
     },
@@ -314,6 +320,8 @@ mod tests {
     fn server_event_serialises_with_type_tag() {
         let msg = ServerMsg::Event {
             channel: Channel::Risk,
+            subject: None,
+            ts_ns: None,
             payload: serde_json::json!({"foo": 1}),
         };
         let s = serde_json::to_string(&msg).unwrap();

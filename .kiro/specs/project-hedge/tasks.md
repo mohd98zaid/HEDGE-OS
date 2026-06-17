@@ -220,7 +220,7 @@ graph TD
     - Add allocation-counting test harness using `stats_alloc::Region` to enforce the no-alloc rule on hot loops
     - _Requirements: 1.4, 2.6, 3.4_
     - _Design: Architecture § Hot_Path Architecture (`hedge-core` foundational library)_
-  - [ ]* 2.2 Write `proptest` suite for `hedge-core` primitives
+  - [x]* 2.2 Write `proptest` suite for `hedge-core` primitives
     - Property: `Px` round-trip arithmetic conserves paise (no fractional drift)
     - Property: `RingWindow` push/pop never allocates and never panics for any sequence within capacity
     - Property: `LatencyTimer` records monotonic, non-decreasing deltas
@@ -251,7 +251,7 @@ graph TD
     - Mirror the JSON schemas as `pydantic` models in the Python package using `hypothesis-jsonschema`-compatible definitions
     - _Requirements: 1.5_
     - _Design: Data Models § Hot_Path Events (FlatBuffers); Data Models § Warm_AI_Pipeline Events (JSON)_
-  - [ ]* 4.2 Write round-trip property tests for every schema
+  - [x]* 4.2 Write round-trip property tests for every schema
     - Property: encode-decode round-trip equals the original for every FlatBuffers and JSON schema (Rust + Python)
     - Property: every JSON event payload validates against its JSON Schema
     - _Requirements: 1.5_
@@ -371,7 +371,7 @@ graph TD
     - Forbid pandas, NumPy, and any Python runtime dependency in this crate
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 30.8_
     - _Design: Components § Feature_Extraction_Engine_
-  - [ ]* 12.2 Write `proptest` for Feature_Extraction_Engine
+  - [x]* 12.2 Write `proptest` for Feature_Extraction_Engine
     - Property: feature extraction p99 < 3 ms over a generated tick stream
     - Property: incremental output equals a window-based reference implementation within FP tolerance for every feature
     - _Requirements: 3.1, 3.2, 3.3_
@@ -530,7 +530,7 @@ graph TD
     - Update the `MarketStability` factor exposed via WarmCache for Risk_Engine consumption
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
     - _Design: Components § Market_Regime_Engine_
-  - [ ]* 22.2 Write `hypothesis` test for Market_Regime_Engine
+  - [x]* 22.2 Write `hypothesis` test for Market_Regime_Engine
     - Property: count of emitted `ai.regime.changed` events equals count of distinct adjacent-pair changes in the observation stream; each event carries prior and current values
     - _Requirements: 13.3_
     - _Design: Components § Market_Regime_Engine_
@@ -574,7 +574,7 @@ graph TD
     - Risk_Engine consumes interventions: `cooldown` blocks new entries; `size_reduction` reduces position sizing per configured factor; `kill_switch` activates the Kill_Switch
     - _Requirements: 16.1, 16.2, 16.3, 16.4, 16.5, 16.6, 16.7_
     - _Design: Components § Trader_Psychology_Engine_
-  - [ ]* 25.2 Write `hypothesis` test for stability score and threshold ladder
+  - [x]* 25.2 Write `hypothesis` test for stability score and threshold ladder
     - Property: `Trader_Stability_Score = clamp(0.35×D + 0.25×E + 0.20×R + 0.20×P, 0.0, 1.0)` exactly for any factor inputs in `[0,1]`
     - Property: count of emitted `ai.psych.intervention` events with each action equals count of distinct threshold-crossing transitions in the configured threshold ladder
     - _Requirements: 16.2, 16.3, 16.4, 16.5, 16.6, 16.7_
@@ -588,7 +588,7 @@ graph TD
     - Run asynchronously off the Hot_Path
     - _Requirements: 17.1, 17.2, 17.3, 17.4, 17.5_
     - _Design: Components § AI_Trade_Ranking_Engine_
-  - [ ]* 26.2 Write `hypothesis` test for AI_Trade_Ranking_Engine
+  - [x]* 26.2 Write `hypothesis` test for AI_Trade_Ranking_Engine
     - Property: `Trade_Confidence_Score = clamp(0.30×O + 0.25×T + 0.20×N + 0.15×M + 0.10×D, 0.0, 1.0)` exactly for any factor inputs in `[0,1]`
     - Property: ranking p95 < 5 ms over a generated signal stream
     - Property: every emitted `ai.rank.<cid>` is delivered to every subscriber exactly once

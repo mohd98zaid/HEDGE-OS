@@ -226,12 +226,22 @@ async fn handle_approval(
         .and_then(|x| x.as_i64())
         .unwrap_or(0);
 
+    let side_str = data
+        .get("side")
+        .and_then(|x| x.as_str())
+        .unwrap_or("buy");
+    let side = match side_str {
+        "sell" | "Sell" | "SELL" => Side::Sell,
+        _ => Side::Buy,
+    };
+
     if live {
         route_live(
             nats,
             brokers,
             &correlation_id,
             &symbol,
+            side,
             qty,
             price_paise,
             max_notional_inr,
@@ -263,11 +273,13 @@ async fn route_paper(nats: &hedge_bus::NatsClient, correlation_id: &str, symbol:
 }
 
 /// LIVE path: notional cap → real submit → failover → fill polling.
+#[allow(clippy::too_many_arguments)]
 async fn route_live(
     nats: &hedge_bus::NatsClient,
     brokers: &Brokers,
     correlation_id: &str,
     symbol: &str,
+    side: Side,
     qty: u64,
     price_paise: i64,
     max_notional_inr: i64,
@@ -305,7 +317,7 @@ async fn route_live(
     let intent = OrderIntent {
         correlation_id: cid,
         symbol_raw: symbol_id,
-        side: Side::Buy, // risk decision side mapping is a follow-up; default Buy
+        side,
         quantity: Qty::new(qty),
         order_type: OrderType::Market,
         limit_paise: 0,

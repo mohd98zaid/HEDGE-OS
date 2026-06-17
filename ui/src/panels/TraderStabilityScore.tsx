@@ -7,6 +7,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { pct, tsAgo } from "../lib/format";
 
 const COMPONENT_LABELS: { key: "discipline" | "emotional_control" | "risk_consistency" | "patience"; label: string; weight: number }[] = [
@@ -57,7 +58,7 @@ export function TraderStabilityScore(): JSX.Element {
       }
     >
       {!stab ? (
-        <p className="text-slate-500">Awaiting first ai.psych.stability …</p>
+        <EmptyState isEngineBacked />
       ) : (
         <>
           <Gauge score={stab.score} />

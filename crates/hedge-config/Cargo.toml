@@ -19,7 +19,7 @@ serde_json = { workspace = true }
 # the bundled CLI binary; we only need in-process schema validation. The
 # `draft202012` feature gates the `Draft::Draft202012` enum variant in
 # jsonschema 0.18.x.
-jsonschema = { workspace = true, features = ["draft202012", "resolve-file"] }
+jsonschema = { workspace = true, features = ["draft202012"] }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 chrono = { workspace = true }

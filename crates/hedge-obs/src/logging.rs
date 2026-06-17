@@ -247,6 +247,7 @@ mod tests {
 
     #[test]
     fn loki_layer_buffers_when_no_shipper_channel() {
+        let _guard = crate::degraded::TEST_MUTEX.lock().unwrap();
         // Reset degraded flag.
         degraded::set_loki_unavailable(false);
 
@@ -274,6 +275,7 @@ mod tests {
 
     #[test]
     fn loki_layer_drops_low_severity_when_unavailable_and_policy_says_drop() {
+        let _guard = crate::degraded::TEST_MUTEX.lock().unwrap();
         degraded::set_loki_unavailable(true);
         let backlog = fresh_backlog();
         let layer = LokiLayer::buffered_only(
@@ -300,6 +302,7 @@ mod tests {
 
     #[test]
     fn loki_layer_buffers_low_severity_when_policy_keeps_them() {
+        let _guard = crate::degraded::TEST_MUTEX.lock().unwrap();
         degraded::set_loki_unavailable(true);
         let backlog = fresh_backlog();
         let layer = LokiLayer::buffered_only(
@@ -321,6 +324,7 @@ mod tests {
 
     #[test]
     fn loki_layer_uses_channel_when_loki_is_available() {
+        let _guard = crate::degraded::TEST_MUTEX.lock().unwrap();
         degraded::set_loki_unavailable(false);
         let backlog = fresh_backlog();
         let (tx, mut rx) = mpsc::channel::<LogEnvelope>(8);

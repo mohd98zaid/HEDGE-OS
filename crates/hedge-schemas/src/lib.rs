@@ -23,6 +23,7 @@
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 
+#[allow(missing_docs)]
 pub mod generated;
 pub mod json_schemas;
 
@@ -207,6 +208,8 @@ pub mod strategy_id {
         OptionsOiExpansionBreakout = 4,
         /// Volatility Compression Breakout.
         VolatilityCompressionBreakout = 5,
+        /// Composite Alpha Breakout.
+        CompositeAlphaBreakout = 6,
     }
 
     impl StrategyId {
@@ -221,6 +224,7 @@ pub mod strategy_id {
                 3 => Some(Self::LiquiditySweepReversal),
                 4 => Some(Self::OptionsOiExpansionBreakout),
                 5 => Some(Self::VolatilityCompressionBreakout),
+                6 => Some(Self::CompositeAlphaBreakout),
                 _ => None,
             }
         }
@@ -240,7 +244,8 @@ pub mod strategy_id {
                 Self::MomentumBreakout => "MomentumBreakout",
                 Self::LiquiditySweepReversal => "LiquiditySweepReversal",
                 Self::OptionsOiExpansionBreakout => "OptionsOiExpansionBreakout",
-                Self::VolatilityCompressionBreakout => "VolatilityCompressionBreakout",
+                Self::VolatilityCompressionBreakout => "volatility_compression",
+                Self::CompositeAlphaBreakout => "composite_alpha",
             }
         }
     }

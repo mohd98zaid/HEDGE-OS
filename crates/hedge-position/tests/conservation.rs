@@ -139,7 +139,7 @@ impl RefLedger {
     }
 
     fn unrealized_paise(&self, mark_paise: i64) -> i128 {
-        if self.qty == 0 {
+        if self.qty == 0 || mark_paise == 0 {
             return 0;
         }
         (mark_paise as i128 - self.avg_paise as i128) * self.qty as i128

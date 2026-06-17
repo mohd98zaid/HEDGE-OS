@@ -225,7 +225,7 @@ async fn process_signal(
             (prev_notional + added_notional) / new_qty.unsigned_abs().max(1) as i64;
     } else if new_qty == 0 || new_qty.signum() != pos.qty_signed.signum() {
         // closed or reversed — emit trade.closed
-        let pnl_paise = (avg_fill - pos.avg_price_paise) * pos.qty_signed.signum() as i64
+        let pnl_paise = (avg_fill - pos.avg_price_paise) * pos.qty_signed.signum()
             * pos.qty_signed.unsigned_abs() as i64;
         let closed_subject = "exec.trade.closed".to_string();
         if suppression.allow_publish(&closed_subject) {

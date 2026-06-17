@@ -3,6 +3,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { paiseToInr } from "../lib/format";
 
 export function OrderflowHeatmap(): JSX.Element {
@@ -12,7 +13,7 @@ export function OrderflowHeatmap(): JSX.Element {
   if (symbols.length === 0) {
     return (
       <Panel title="Orderflow Heatmap" synthChannel="orderflow" critical>
-        <p className="text-slate-500">Awaiting first of.heatmap.* frame …</p>
+        <EmptyState isEngineBacked />
       </Panel>
     );
   }

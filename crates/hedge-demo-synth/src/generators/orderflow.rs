@@ -112,7 +112,7 @@ async fn run_heatmaps(
 }
 
 fn build_cells(ltp_paise: i64, rng: &mut Mulberry32) -> Vec<Value> {
-    let step = ((ltp_paise / 10_000).max(5)) as i64; // ~0.01% in paise
+    let step = (ltp_paise / 10_000).max(5); // ~0.01% in paise
     (-5..=5i64)
         .map(|offset| {
             let price = ltp_paise + offset * step;

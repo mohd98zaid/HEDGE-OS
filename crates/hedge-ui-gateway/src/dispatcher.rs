@@ -188,6 +188,8 @@ impl Dispatcher {
                     for p in payloads {
                         out.push(ServerMsg::Event {
                             channel: Channel::Signals,
+                            subject: Some(ev.subject.clone()),
+                            ts_ns: Some(ev.ts_ns as u64),
                             payload: p,
                         });
                     }
@@ -202,6 +204,8 @@ impl Dispatcher {
 
             out.push(ServerMsg::Event {
                 channel: ch,
+                subject: Some(ev.subject.clone()),
+                ts_ns: Some(ev.ts_ns as u64),
                 payload: ev.payload.clone(),
             });
         }
@@ -260,6 +264,8 @@ impl Dispatcher {
         let payload = serde_json::to_value(ordered).unwrap_or(Value::Null);
         vec![ServerMsg::Event {
             channel: Channel::Alerts,
+            subject: Some("alerts".into()),
+            ts_ns: None,
             payload,
         }]
     }
@@ -276,6 +282,8 @@ impl Dispatcher {
             .into_iter()
             .map(|payload| ServerMsg::Event {
                 channel: Channel::Signals,
+                subject: Some("sig.emitted".into()),
+                ts_ns: None,
                 payload,
             })
             .collect()
@@ -506,7 +514,7 @@ mod tests {
         ));
         assert_eq!(out.len(), 1);
         match &out[0] {
-            ServerMsg::Event { channel, payload } => {
+            ServerMsg::Event { channel, payload, .. } => {
                 assert_eq!(*channel, Channel::Signals);
                 assert_eq!(payload["signal"]["strategy"], "obr");
                 assert_eq!(payload["ranks"][0]["score"], 0.7);
@@ -556,7 +564,7 @@ mod tests {
         let flushes = d.drain_signal_flushes();
         assert_eq!(flushes.len(), 1);
         match &flushes[0] {
-            ServerMsg::Event { channel, payload } => {
+            ServerMsg::Event { channel, payload, .. } => {
                 assert_eq!(*channel, Channel::Signals);
                 assert_eq!(payload["ranks"], json!([]));
                 assert_eq!(payload["shadowed_sources"], json!(["ranking"]));
@@ -639,7 +647,7 @@ mod tests {
         });
         // Last call returns the *current* ordered snapshot.
         match &out[0] {
-            ServerMsg::Event { channel, payload } => {
+            ServerMsg::Event { channel, payload, .. } => {
                 assert_eq!(*channel, Channel::Alerts);
                 let xs = payload.as_array().unwrap();
                 assert_eq!(xs[0]["severity"], "critical");

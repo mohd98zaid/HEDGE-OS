@@ -11,6 +11,7 @@ import { useEffect } from "react";
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { tsAgo, pct } from "../lib/format";
 import type { RankFactors, RankedSignal } from "../types";
 
@@ -70,7 +71,7 @@ export function AiConfidenceScores(): JSX.Element {
       status={<span>{visible.length} ranked</span>}
     >
       {visible.length === 0 ? (
-        <p className="text-slate-500">Awaiting ranked signals …</p>
+        <EmptyState isEngineBacked />
       ) : (
         <ul className="space-y-2 max-h-80 overflow-y-auto">
           {visible.map((s) => (

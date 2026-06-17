@@ -1,5 +1,5 @@
 {
-  "$id": "hedge_config.schema.json",
+  "$id": "https://hedge.config/schema.json",
   "title": "HedgeConfig",
   "type": "object",
   "additionalProperties": false,

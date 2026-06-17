@@ -2,6 +2,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { formatInr, tsAgo } from "../lib/format";
 
 export function RiskPanel(): JSX.Element {
@@ -21,6 +22,9 @@ export function RiskPanel(): JSX.Element {
         </span>
       }
     >
+      {!portfolio && Object.keys(cooldowns).length === 0 && decisions.length === 0 ? (
+        <EmptyState isEngineBacked />
+      ) : (
       <div className="space-y-3">
         {portfolio ? (
           <dl className="grid grid-cols-3 gap-2 text-xs">
@@ -79,6 +83,7 @@ export function RiskPanel(): JSX.Element {
           </ul>
         </div>
       </div>
+      )}
     </Panel>
   );
 }

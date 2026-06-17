@@ -3,6 +3,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { paiseToInr, formatInr } from "../lib/format";
 
 export function Positions(): JSX.Element {
@@ -12,7 +13,7 @@ export function Positions(): JSX.Element {
   return (
     <Panel title="Positions" synthChannel="risk" status={<span>{syms.length} open</span>}>
       {syms.length === 0 ? (
-        <p className="text-slate-500">No open positions.</p>
+        <EmptyState isEngineBacked />
       ) : (
         <table className="w-full font-mono text-xs">
           <thead className="text-slate-500">

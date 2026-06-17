@@ -212,13 +212,13 @@ impl PositionEngine {
             state.last_published_aggregate = Some(new_state);
         }
 
-        let mut out = Vec::with_capacity(2);
-        out.push(PositionEvent::PositionUpdate {
-            symbol,
-            snapshot: Box::new(snapshot),
-        });
-        out.push(PositionEvent::RiskState(new_state));
-        out
+        vec![
+            PositionEvent::PositionUpdate {
+                symbol,
+                snapshot: Box::new(snapshot),
+            },
+            PositionEvent::RiskState(new_state),
+        ]
     }
 
     /// Process a single market tick (R8.3). Returns the events the caller

@@ -2,6 +2,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { tsAgo } from "../lib/format";
 
 export function NewsFeed(): JSX.Element {
@@ -10,7 +11,7 @@ export function NewsFeed(): JSX.Element {
   return (
     <Panel title="News" synthChannel="news" status={<span>{recent.length} items</span>}>
       {recent.length === 0 ? (
-        <p className="text-slate-500">Awaiting ai.news.impact.* …</p>
+        <EmptyState isEngineBacked />
       ) : (
         <ul className="space-y-2 max-h-80 overflow-y-auto">
           {recent.slice(0, 30).map((n) => (

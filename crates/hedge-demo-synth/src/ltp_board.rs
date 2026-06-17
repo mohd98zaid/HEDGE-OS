@@ -47,6 +47,7 @@ impl LtpBoard {
 
     /// Snapshot every symbol/quote pair currently on the board. Returns
     /// pairs in arbitrary order.
+    #[allow(dead_code)]
     pub fn snapshot(&self) -> Vec<(String, Quote)> {
         self.inner
             .iter()

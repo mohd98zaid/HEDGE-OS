@@ -39,6 +39,7 @@ quanta = { workspace = true }
 bytes = { workspace = true }
 futures = { workspace = true }
 redis = { workspace = true }
+rand = { workspace = true }
 
 [dev-dependencies]
 proptest = { workspace = true }

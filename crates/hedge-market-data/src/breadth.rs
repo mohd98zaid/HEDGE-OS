@@ -260,10 +260,10 @@ impl BreadthAggregator {
             }
             let entry = counts.entry(sector.as_str()).or_default();
             entry.2 += 1;
-            if state.last_ltp_paise > prev {
-                entry.0 += 1;
-            } else if state.last_ltp_paise < prev {
-                entry.1 += 1;
+            match state.last_ltp_paise.cmp(&prev) {
+                std::cmp::Ordering::Greater => entry.0 += 1,
+                std::cmp::Ordering::Less => entry.1 += 1,
+                _ => {}
             }
         }
 

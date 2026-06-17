@@ -3,6 +3,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { paiseToInr } from "../lib/format";
 
 export function OptionsChain(): JSX.Element {
@@ -16,7 +17,7 @@ export function OptionsChain(): JSX.Element {
       status={<span>{symbols.length} underlyings</span>}
     >
       {symbols.length === 0 ? (
-        <p className="text-slate-500">Awaiting first md.oi.* frame …</p>
+        <EmptyState />
       ) : (
         <div className="space-y-3 max-h-72 overflow-y-auto">
           {symbols.map((sym) => {

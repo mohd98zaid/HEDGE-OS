@@ -240,17 +240,21 @@ export class GatewayClient {
         return;
       }
       case "mode": {
+        // eslint-disable-next-line no-console
+        console.info("[ws] gateway mode", env);
         const hv = (env as unknown as { high_volatility?: boolean }).high_volatility === true;
         for (const fn of this.modeHandlers) fn(hv);
         return;
       }
       case "ack":
       case "pong":
-        return; // silent
+        // eslint-disable-next-line no-console
+        console.info("[ws] gateway", t, env);
+        return;
       case "error": {
         const e = env as unknown as { code?: string; message?: string };
         // eslint-disable-next-line no-console
-        console.warn("[ws] gateway error", e.code ?? "unknown", e.message ?? "");
+        console.info("[ws] gateway error", e.code ?? "unknown", e.message ?? "");
         return;
       }
       default:

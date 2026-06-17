@@ -17,6 +17,7 @@ pub fn now_ns() -> i64 {
 
 /// Wall-clock milliseconds since the Unix epoch.
 #[inline]
+#[allow(dead_code)]
 pub fn now_ms() -> u64 {
     let ns = Utc::now().timestamp_nanos_opt().unwrap_or(0);
     if ns < 0 {
@@ -80,7 +81,7 @@ pub fn step_quote(
     let revert = (anchor_paise - prev) as f64 * 0.0005;
     let delta_paise = ((prev as f64) * (bps / 10_000.0)) + revert;
     let ltp = (prev as f64 + delta_paise).round() as i64;
-    let spread = ((prev / 2_000).max(5)) as i64; // ~0.05% spread, at least 5 paise
+    let spread = (prev / 2_000).max(5); // ~0.05% spread, at least 5 paise
     let q = Quote {
         ltp_paise: ltp.max(1),
         bid_paise: (ltp - spread / 2).max(1),

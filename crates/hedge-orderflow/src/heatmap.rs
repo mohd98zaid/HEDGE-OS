@@ -128,6 +128,12 @@ impl OrderflowHeatmap {
         self.sender.subscribe()
     }
 
+    /// Retrieve the latest snapshot without allocating a new channel receiver.
+    #[inline]
+    pub fn get_snapshot(&self) -> HeatmapSnapshot {
+        self.sender.borrow().clone()
+    }
+
     /// Number of currently-active subscribers. Useful for UI-gateway
     /// liveness checks; not load-bearing for correctness.
     #[inline]

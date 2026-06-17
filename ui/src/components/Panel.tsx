@@ -13,7 +13,16 @@ import type { ReactNode } from "react";
 import { useHighVolMode } from "../hooks/useHighVolMode";
 import { useWarMode } from "../hooks/useWarMode";
 import { SynthBadge } from "./SynthBadge";
+import { usePanelFreshness } from "../lib/freshness";
 import type { ChannelId } from "../types";
+
+function FreshnessDot({ channel }: { channel?: ChannelId }): JSX.Element | null {
+  const freshness = usePanelFreshness(channel);
+  if (freshness === "hidden") return null;
+
+  const dot = freshness === "fresh" ? "🟢" : freshness === "stale" ? "🟡" : "🔴";
+  return <span className="ml-2 text-[10px]" title={`Data freshness: ${freshness}`}>{dot}</span>;
+}
 
 export interface PanelProps {
   title: string;
@@ -52,9 +61,10 @@ export function Panel({
       className={`rounded-lg border border-slate-800 bg-hedge-panel p-4 transition-opacity duration-200 ${panelDim} ${className}`}
     >
       <header className="mb-3 flex items-baseline justify-between">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center">
           {title}
           {synthChannel ? <SynthBadge channel={synthChannel} /> : null}
+          <FreshnessDot channel={synthChannel} />
         </h2>
         {status ? (
           <div className="text-[10px] font-mono text-slate-500">{status}</div>

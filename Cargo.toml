@@ -89,6 +89,7 @@ hex = "0.4"
 futures = "0.3"
 once_cell = "1.19"
 parking_lot = "0.12"
+rand = "0.8"
 jsonschema = { version = "0.18", default-features = false }
 tempfile = "3.10"
 

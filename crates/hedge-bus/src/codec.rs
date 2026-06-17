@@ -70,7 +70,7 @@ impl<T> JsonCodec<T> {
 impl<T> Clone for JsonCodec<T> {
     #[inline]
     fn clone(&self) -> Self {
-        Self(PhantomData)
+        *self
     }
 }
 

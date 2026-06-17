@@ -13,6 +13,7 @@
 //! Keeping the helpers in one place makes Property 4 (formula
 //! equivalence) trivially auditable.
 
+pub mod composite_alpha;
 pub mod liquidity_sweep_reversal;
 pub mod momentum_breakout;
 pub mod options_oi_expansion_breakout;
@@ -20,7 +21,10 @@ pub mod orb;
 pub mod util;
 pub mod volatility_compression_breakout;
 pub mod vwap_pullback;
+pub mod precision_breakout;
 
+pub use composite_alpha::CompositeAlphaBreakout;
+pub use precision_breakout::PrecisionBreakoutPro;
 pub use liquidity_sweep_reversal::LiquiditySweepReversal;
 pub use momentum_breakout::MomentumBreakout;
 pub use options_oi_expansion_breakout::OptionsOiExpansionBreakout;

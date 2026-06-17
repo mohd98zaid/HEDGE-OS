@@ -200,7 +200,7 @@ pub fn apply_fill_inner(
 /// inputs.
 #[inline]
 pub fn unrealized_pnl_paise(qty: i64, avg_entry_px: Px, mark_px: Px) -> i64 {
-    if qty == 0 {
+    if qty == 0 || mark_px == Px::ZERO {
         return 0;
     }
     let diff = mark_px.to_paise() as i128 - avg_entry_px.to_paise() as i128;

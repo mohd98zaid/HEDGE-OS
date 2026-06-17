@@ -32,9 +32,7 @@ pub const TAKE_PROFIT_ATR_MULT: f64 = 2.5;
 /// guarantee `base_probability ∈ [0.0, 1.0]` (R4.3).
 #[inline]
 pub fn clamp01(v: f32) -> f32 {
-    if v.is_nan() {
-        0.0
-    } else if v < 0.0 {
+    if v.is_nan() || v < 0.0 {
         0.0
     } else if v > 1.0 {
         1.0
@@ -89,6 +87,7 @@ pub const fn side_byte(side: Side) -> u8 {
 /// clamping enforces R4.3 (`base_probability ∈ [0, 1]`,
 /// `confidence ∈ [0, 1]`) at the type-level boundary so a strategy that
 /// computes a slightly out-of-band value cannot leak it onto the wire.
+#[allow(clippy::too_many_arguments)]
 pub fn build_signal(
     correlation_id: [u8; 16],
     strategy_id: hedge_schemas::strategy_id::StrategyId,

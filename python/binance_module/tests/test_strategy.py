@@ -126,7 +126,8 @@ class TestEMACrossover:
         assert signal is not None
         assert signal["side"] == "buy"
 
-    def test_sell_signal_on_downward_cross(self) -> None:
+    def test_no_signal_on_downward_cross(self) -> None:
+        """Long-only strategy should NOT emit a sell signal on bearish crossover."""
         state = make_state(vol_surge=0.0)
         # Warmup with slightly rising prices to ensure fast > slow
         ts = time.time() - 30
@@ -137,11 +138,10 @@ class TestEMACrossover:
         signal = None
         for i in range(30):
             signal = state.on_tick(100.0, 99.9, 100.1, 5_000.0, ts + i)
-            if signal and signal["side"] == "sell":
+            if signal is not None:
                 break
 
-        assert signal is not None
-        assert signal["side"] == "sell"
+        assert signal is None, f"long-only strategy should not emit signal on bearish cross, got {signal}"
 
 
 # ── Gate 2: RSI filter ────────────────────────────────────────────────────────

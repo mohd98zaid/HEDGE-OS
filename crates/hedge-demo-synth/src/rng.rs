@@ -29,6 +29,7 @@ pub struct Mulberry32 {
 impl Mulberry32 {
     /// Construct from a raw seed.
     #[inline]
+    #[allow(dead_code)]
     pub const fn with_seed(seed: u32) -> Self {
         Self { state: seed }
     }
@@ -83,6 +84,7 @@ impl Mulberry32 {
 /// Stream tags for each generator. Picking distinct tags keeps the per-
 /// generator sequences independent so adding a new generator does not
 /// shift the byte output of unrelated ones.
+#[allow(dead_code)]
 pub mod stream {
     pub const TICK: u32 = 0x01;
     pub const BOOK: u32 = 0x02;

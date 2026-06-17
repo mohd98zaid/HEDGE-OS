@@ -15,7 +15,7 @@
 //!
 //! ### NATS subject mapping
 //!
-//! * subscribe: `md.book.>`, `md.tick.>`
+//! * subscribe: `md.book.>`, `md.tick.*`
 //! * publish: `of.event.<symbol_id>`, `of.heatmap.<symbol_id>`
 //!
 //! In production, the inbound `md.*` subscriptions terminate on a typed
@@ -89,26 +89,59 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-/// Body shape of the raw `md.book.<sym>` payload as emitted by the
-/// Market_Data_Engine wire-bytes bridge. Until the typed
-/// `FlatBuffersCodec<OrderBook>` codec ships in task 4.2 we pass through
-/// raw bytes and decode the symbol id from the leading body slot for
-/// routing.
 async fn run_book_loop(_engine: Arc<OrderflowEngine>, nats: NatsClient) -> Result<()> {
-    let subject: Subject<hedge_bus::RawBytes> = Subject::new("md.book.>");
+    let subject: Subject<serde_json::Value> = Subject::new("md.book.>");
     let mut sub = nats
-        .subscriber(subject, hedge_bus::FlatBuffersCodec)
+        .subscriber(subject, JsonCodec::new())
         .await
         .context("subscribe md.book.>")?;
     info!("subscribed md.book.>");
     loop {
-        match sub.recv_bytes().await {
-            Ok(bytes) => {
-                // The engine is decoupled from wire layout; until task 4.2
-                // ships the typed codec we drop raw payloads we cannot
-                // reconstruct into `OrderBook`. Once the typed codec is
-                // available, replace this branch with `engine.ingest_book(&book, now_ns())`.
-                tracing::trace!(bytes = bytes.len(), "received book payload (decode pending task 4.2)");
+        match sub.recv().await {
+            Ok(envelope) => {
+                if let Some(data) = envelope.get("data") {
+                    if let Some(symbol_str) = data.get("symbol").and_then(|v| v.as_str()) {
+                        let symbol_id = hedge_bus::symbol_id_for(symbol_str);
+                        if symbol_id == 0 {
+                            continue;
+                        }
+
+                        let bid_paise = data.get("bid_paise").and_then(|v| v.as_i64()).unwrap_or(0);
+                        let bid_qty = data.get("bid_qty").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let ask_paise = data.get("ask_paise").and_then(|v| v.as_i64()).unwrap_or(0);
+                        let ask_qty = data.get("ask_qty").and_then(|v| v.as_u64()).unwrap_or(0);
+                        let ts_ns = data.get("ts_ns").and_then(|v| v.as_u64()).unwrap_or_else(engine_now_ns);
+
+                        let mut book = hedge_schemas::OrderBook {
+                            symbol: symbol_id,
+                            ts_ns,
+                            ..hedge_schemas::OrderBook::default()
+                        };
+                        if bid_qty > 0 {
+                            book.bid_levels.push(hedge_schemas::BookLevel {
+                                price_paise: bid_paise,
+                                qty: bid_qty,
+                                orders: 1,
+                            });
+                        }
+                        if ask_qty > 0 {
+                            book.ask_levels.push(hedge_schemas::BookLevel {
+                                price_paise: ask_paise,
+                                qty: ask_qty,
+                                orders: 1,
+                            });
+                        }
+
+                        if let Some(snap) = _engine.ingest_book(&book, engine_now_ns()) {
+                            if let Some(heatmap_snap) = _engine.current_heatmap(hedge_core::SymbolId::new(symbol_id)) {
+                                let _ = publish_heatmap(&nats, hedge_core::SymbolId::new(symbol_id), &heatmap_snap).await;
+                            }
+                            for ev in snap.events.as_slice() {
+                                let _ = publish_event(&nats, hedge_core::SymbolId::new(symbol_id), ev).await;
+                            }
+                        }
+                    }
+                }
             }
             Err(err) => {
                 warn!(error = %err, "book recv terminated");
@@ -119,18 +152,54 @@ async fn run_book_loop(_engine: Arc<OrderflowEngine>, nats: NatsClient) -> Resul
 }
 
 async fn run_tick_loop(_engine: Arc<OrderflowEngine>, nats: NatsClient) -> Result<()> {
-    // Phase B: subscribe to `md.tick.bin.>` (binary Tick_v1) instead of
-    // the wildcard `md.tick.>` which now also carries cockpit JSON.
-    let subject: Subject<hedge_bus::RawBytes> = Subject::new("md.tick.bin.>");
+    use hedge_bus::{FlatBuffersCodec, RawBytes};
+    let subject: Subject<RawBytes> = Subject::new("md.tick.*");
     let mut sub = nats
-        .subscriber(subject, hedge_bus::FlatBuffersCodec)
+        .subscriber(subject, FlatBuffersCodec)
         .await
-        .context("subscribe md.tick.bin.>")?;
-    info!("subscribed md.tick.bin.>");
+        .context("subscribe md.tick.*")?;
+    info!("subscribed md.tick.* (binary)");
     loop {
-        match sub.recv_bytes().await {
-            Ok(bytes) => {
-                tracing::trace!(bytes = bytes.len(), "received tick payload (decode pending task 4.2)");
+        match sub.recv().await {
+            Ok(envelope) => {
+                let bytes = envelope.as_slice();
+                if bytes.len() != 77 {
+                    continue; // Skip malformed ticks
+                }
+
+                // Temporary inline decoding matching decoder_shim.rs logic.
+                let symbol_id = u32::from_le_bytes(bytes[16..20].try_into().unwrap());
+                let exchange = bytes[20] as i8;
+                let ltp_paise = i64::from_le_bytes(bytes[21..29].try_into().unwrap());
+                let bid_paise = i64::from_le_bytes(bytes[29..37].try_into().unwrap());
+                let ask_paise = i64::from_le_bytes(bytes[37..45].try_into().unwrap());
+                let ltq = u64::from_le_bytes(bytes[45..53].try_into().unwrap());
+                let total_buy_qty = u64::from_le_bytes(bytes[53..61].try_into().unwrap());
+                let total_sell_qty = u64::from_le_bytes(bytes[61..69].try_into().unwrap());
+                let ts_recv_ns = u64::from_le_bytes(bytes[69..77].try_into().unwrap());
+
+                let tick = hedge_schemas::Tick {
+                    correlation_id: [0; 16],
+                    symbol: symbol_id,
+                    exchange,
+                    ltp_paise,
+                    bid_paise,
+                    ask_paise,
+                    ltq,
+                    total_buy_qty,
+                    total_sell_qty,
+                    ts_exchange_ns: ts_recv_ns,
+                    ts_recv_ns,
+                };
+
+                let snap = _engine.ingest_tick(&tick, ts_recv_ns);
+                
+                if let Some(heatmap_snap) = _engine.current_heatmap(hedge_core::SymbolId::new(symbol_id)) {
+                    let _ = publish_heatmap(&nats, hedge_core::SymbolId::new(symbol_id), &heatmap_snap).await;
+                }
+                for ev in snap.events.as_slice() {
+                    let _ = publish_event(&nats, hedge_core::SymbolId::new(symbol_id), ev).await;
+                }
             }
             Err(err) => {
                 warn!(error = %err, "tick recv terminated");

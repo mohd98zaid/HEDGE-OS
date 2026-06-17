@@ -177,13 +177,23 @@ REM  STEP 1: Infrastructure (both modes need NATS)
 REM ============================================================
 echo  [1/5] Starting infrastructure...
 docker compose --profile infra up -d
-echo        Waiting for NATS to be ready...
+echo        Waiting for NATS to be ready (timeout: 60s)...
+set "NATS_RETRIES=0"
 
 :wait_nats
 timeout /t 2 /nobreak >nul
 curl -s http://127.0.0.1:8222/varz >nul 2>&1
 if errorlevel 1 (
-    echo        ... still waiting for NATS
+    set /a NATS_RETRIES+=1
+    if !NATS_RETRIES! GEQ 30 (
+        echo.
+        echo  [ERROR] NATS did not start within 60 seconds.
+        echo          Check Docker Desktop is running and try again.
+        echo          Run: docker compose --profile infra logs nats
+        pause
+        exit /b 1
+    )
+    echo        ... still waiting for NATS [!NATS_RETRIES!/30]
     goto :wait_nats
 )
 echo        NATS is ready.
@@ -390,24 +400,6 @@ if /i "%HEDGE_MODE%"=="replay" (
     )
 )
 
-echo   Press any key to STOP all services and exit...
-echo     UI Gateway           : ws://localhost:8088
-echo     Demo Synth           : %HEDGE_DEMO_SYNTH%
-echo     Warm_AI Pipeline     : %HEDGE_WARM_AI%
-if "%RUN_REAL_PIPELINE%"=="1" (
-    echo     Session Controller   : running (09:15-15:30 IST gate)
-    echo     Supervisor           : running (self-healing)
-    echo     Upstox Feed          : REST polling, 500ms LTP / 2s book
-)
-echo     (Replay is an inspector CLI: hedge-replay.exe list ^| info ^| dump)
-echo.
-echo   Dashboards:
-echo     Cockpit UI           : http://localhost:5173
-echo     Grafana              : http://localhost:3000  (admin / hedge)
-echo     NATS Monitor         : http://localhost:8222
-echo     Jaeger Traces        : http://localhost:16686
-echo     Prometheus           : http://localhost:9090
-echo.
 echo  ============================================================
 echo   Press any key to STOP all services and exit...
 echo  ============================================================

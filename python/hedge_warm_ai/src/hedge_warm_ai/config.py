@@ -255,10 +255,10 @@ class OllamaModelConfig(_StrictModel):
 
 def _default_ollama_models() -> list[OllamaModelConfig]:
     return [
-        OllamaModelConfig(name="qwen2.5:14b", role=OllamaRole.PRIMARY, quant="q4_k_m"),
-        OllamaModelConfig(name="mistral:7b", role=OllamaRole.FAST, quant="q4_k_m"),
-        OllamaModelConfig(name="deepseek-r1", role=OllamaRole.DEEP, quant="q4_k_m"),
-        OllamaModelConfig(name="phi", role=OllamaRole.LIGHTWEIGHT, quant="q4_k_m"),
+        OllamaModelConfig(name="gemma4:31b-cloud", role=OllamaRole.PRIMARY, quant="cloud"),
+        OllamaModelConfig(name="gemma4:31b-cloud", role=OllamaRole.FAST, quant="cloud"),
+        OllamaModelConfig(name="gemma4:31b-cloud", role=OllamaRole.DEEP, quant="cloud"),
+        OllamaModelConfig(name="gemma4:31b-cloud", role=OllamaRole.LIGHTWEIGHT, quant="cloud"),
     ]
 
 

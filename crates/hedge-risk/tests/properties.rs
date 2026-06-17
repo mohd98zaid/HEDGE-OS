@@ -15,6 +15,7 @@
 
 use std::sync::Arc;
 
+use chrono::Datelike;
 use hedge_config::defaults;
 use hedge_obs::NoopEmitter;
 use hedge_risk::{

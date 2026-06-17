@@ -95,6 +95,7 @@ pub enum ConnectionStatus {
 /// Uses `async fn` in trait (stable since Rust 1.75); not object-safe by
 /// design — the engine binds adapters via generic type parameters, never
 /// behind `dyn`.
+#[allow(async_fn_in_trait)]
 pub trait WsAdapter<P: MarketDataProtocol>: Send {
     /// Receive the next normalized message.
     ///

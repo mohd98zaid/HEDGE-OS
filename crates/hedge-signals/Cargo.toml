@@ -14,6 +14,10 @@ path = "src/lib.rs"
 name = "hedge-signals"
 path = "src/bin/main.rs"
 
+[[bin]]
+name = "backtest_harness"
+path = "src/bin/backtest_harness.rs"
+
 [dependencies]
 hedge-core = { path = "../hedge-core" }
 hedge-bus = { path = "../hedge-bus" }
@@ -21,6 +25,7 @@ hedge-schemas = { path = "../hedge-schemas" }
 hedge-obs = { path = "../hedge-obs" }
 hedge-config = { path = "../hedge-config" }
 hedge-features = { path = "../hedge-features" }
+hedge-replay = { path = "../hedge-replay" }
 
 # Workspace pins (R3.6 / R30.8: NO pandas, NO NumPy, NO Python).
 tokio = { workspace = true }

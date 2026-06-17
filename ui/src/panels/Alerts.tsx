@@ -30,14 +30,29 @@ export function Alerts(): JSX.Element {
       (a) => a && typeof a.id === "string" && typeof a.severity === "string" && typeof a.title === "string",
     ),
   );
+  const feedStatus = useCockpitStore((s) => s.meta.feedStatus);
+
+  const displayList =
+    feedStatus === "token_expired"
+      ? [
+          {
+            id: "sys-token-expired",
+            severity: "high" as AlertSeverity,
+            title: "Gateway Token Expired",
+            body: "Broker auth token rejected. Set HEDGE_UPSTOX_ACCESS_TOKEN in .env and restart gateway.",
+            ts_ns: Date.now() * 1000000,
+          },
+          ...list,
+        ]
+      : list;
 
   return (
-    <Panel title="Alerts" synthChannel="alerts" status={<span>{list.length} active</span>}>
-      {list.length === 0 ? (
+    <Panel title="Alerts" synthChannel="alerts" status={<span>{displayList.length} active</span>}>
+      {displayList.length === 0 ? (
         <p className="text-slate-500">No alerts.</p>
       ) : (
         <ul className="space-y-2 max-h-72 overflow-y-auto">
-          {list.slice(0, 50).map((a) => (
+          {displayList.slice(0, 50).map((a) => (
             <li
               key={a.id}
               className={`rounded border px-2 py-1 text-xs ${TONE[a.severity] ?? TONE.info}`}

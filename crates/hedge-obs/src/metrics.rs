@@ -246,7 +246,16 @@ mod tests {
     /// gather output.
     #[test]
     fn registry_contains_every_named_metric() {
-        let _ = init_metrics().unwrap();
+        let m = init_metrics().unwrap();
+        
+        // Ensure vectors are instantiated so they appear in gather output
+        m.broker_latency_ns.with_label_values(&["zerodha"]).observe(0.0);
+        m.slippage_bps.with_label_values(&["RELIANCE"]).observe(0.0);
+        m.websocket_drops_total.with_label_values(&["nse_l1"]).inc();
+        m.risk_anomaly_total.with_label_values(&["volatility_block"]).inc();
+        m.budget_breach_total.with_label_values(&["RiskCheck"]).inc();
+        m.ai_drift.with_label_values(&["AI_Trade_Ranking"]).set(0.0);
+
         let families = registry().gather();
         let names: std::collections::HashSet<_> =
             families.iter().map(|f| f.get_name().to_string()).collect();

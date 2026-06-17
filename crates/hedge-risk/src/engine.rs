@@ -514,9 +514,7 @@ fn is_within_session(cfg: &SessionConfig) -> bool {
 /// must never propagate NaN).
 #[inline]
 fn clamp01(v: f32) -> f32 {
-    if v.is_nan() {
-        0.0
-    } else if v < 0.0 {
+    if v.is_nan() || v < 0.0 {
         0.0
     } else if v > 1.0 {
         1.0
@@ -777,6 +775,7 @@ mod tests {
             s.broker_latency.record(BrokerId::Dhan, 999);
             s.broker_latency.record(BrokerId::Shoonya, 999);
             s.broker_latency.record(BrokerId::AngelOne, 999);
+            s.broker_latency.record(BrokerId::Upstox, 999);
         }
         let sig = make_signal(42, 0.9);
         let d = engine.evaluate(&sig, 10_000, &NoopEmitter);

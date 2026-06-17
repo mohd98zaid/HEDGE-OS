@@ -20,31 +20,31 @@ pub const DEMO_BASKET: &[DemoSymbol] = &[
     DemoSymbol {
         trading_symbol: "RELIANCE",
         instrument_key: "NSE_EQ|INE002A01018",
-        anchor_paise: 1_355_00,
+        anchor_paise: 135_500,
         sector: "Energy",
     },
     DemoSymbol {
         trading_symbol: "INFY",
         instrument_key: "NSE_EQ|INE009A01021",
-        anchor_paise: 1_163_00,
+        anchor_paise: 116_300,
         sector: "IT",
     },
     DemoSymbol {
         trading_symbol: "SBIN",
         instrument_key: "NSE_EQ|INE062A01020",
-        anchor_paise: 969_00,
+        anchor_paise: 96_900,
         sector: "Banks",
     },
     DemoSymbol {
         trading_symbol: "HDFCBANK",
         instrument_key: "NSE_EQ|INE040A01034",
-        anchor_paise: 762_00,
+        anchor_paise: 76_200,
         sector: "Banks",
     },
     DemoSymbol {
         trading_symbol: "ICICIBANK",
         instrument_key: "NSE_EQ|INE090A01021",
-        anchor_paise: 1_285_00,
+        anchor_paise: 128_500,
         sector: "Banks",
     },
 ];

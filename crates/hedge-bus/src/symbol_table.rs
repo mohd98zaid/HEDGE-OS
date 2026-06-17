@@ -28,6 +28,11 @@ pub fn symbol_id_for(sym: &str) -> u32 {
         "SBIN" => 3,
         "HDFCBANK" => 4,
         "ICICIBANK" => 5,
+        "NSE_INDEX|Nifty 50" => 6,
+        "NSE_INDEX|Nifty Bank" => 7,
+        "NSE_INDEX|Nifty Next 50" => 8,
+        "NSE_INDEX|Nifty Fin Service" => 9,
+        "NSE_INDEX|Nifty 100" => 10,
         // Add more here. Keep ids stable across releases.
         _ => 0,
     }
@@ -42,6 +47,11 @@ pub fn symbol_for_id(id: u32) -> Option<&'static str> {
         3 => Some("SBIN"),
         4 => Some("HDFCBANK"),
         5 => Some("ICICIBANK"),
+        6 => Some("NSE_INDEX|Nifty 50"),
+        7 => Some("NSE_INDEX|Nifty Bank"),
+        8 => Some("NSE_INDEX|Nifty Next 50"),
+        9 => Some("NSE_INDEX|Nifty Fin Service"),
+        10 => Some("NSE_INDEX|Nifty 100"),
         _ => None,
     }
 }

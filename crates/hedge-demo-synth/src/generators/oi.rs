@@ -62,7 +62,7 @@ pub async fn run(
 /// Five strikes centered on `ltp`, spaced ~1% apart, with realistic
 /// asymmetric OI (high near ATM, falling outward) and small change-in-OI.
 fn build_strike_ladder(ltp_paise: i64, rng: &mut Mulberry32) -> Vec<Value> {
-    let step = ((ltp_paise / 100).max(50)) as i64; // ~1% in paise
+    let step = (ltp_paise / 100).max(50); // ~1% in paise
     (-2..=2i64)
         .map(|offset| {
             let strike_paise = ltp_paise + offset * step;

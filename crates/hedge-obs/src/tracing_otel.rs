@@ -27,7 +27,7 @@
 //! `Config::with_sampler<T: ShouldSample + 'static>`.
 
 use opentelemetry::trace::{
-    Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId, TraceState,
+    Link, SamplingDecision, SamplingResult, SpanKind, TraceContextExt, TraceId,
 };
 use opentelemetry::{Context, KeyValue};
 use opentelemetry_sdk::trace::ShouldSample;
@@ -95,7 +95,7 @@ impl ShouldSample for DownsampledSampler {
     ) -> SamplingResult {
         let trace_state = parent_context
             .map(|cx| cx.span().span_context().trace_state().clone())
-            .unwrap_or_else(TraceState::default);
+            .unwrap_or_default();
 
         let decision = if degraded::jaeger_overloaded() {
             if self.keep_decision(trace_id) {

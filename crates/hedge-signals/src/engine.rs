@@ -36,7 +36,7 @@ use tracing::{instrument, warn};
 use crate::context::{NewsGates, PreviousDayMemory, StrategyContext, StrategyToggles};
 use crate::gating::{check_gates, check_war_mode};
 use crate::strategies::{
-    LiquiditySweepReversal, MomentumBreakout, OpeningRangeBreakout,
+    CompositeAlphaBreakout, LiquiditySweepReversal, MomentumBreakout, OpeningRangeBreakout,
     OptionsOiExpansionBreakout, VolatilityCompressionBreakout, VwapPullback,
 };
 use crate::strategy::Strategy;
@@ -190,6 +190,7 @@ impl SignalEngine {
             Arc::new(LiquiditySweepReversal),
             Arc::new(OptionsOiExpansionBreakout::new()),
             Arc::new(VolatilityCompressionBreakout),
+            Arc::new(CompositeAlphaBreakout),
         ];
         Self {
             nats,
@@ -523,6 +524,7 @@ mod tests {
             Arc::new(LiquiditySweepReversal),
             Arc::new(OptionsOiExpansionBreakout::new()),
             Arc::new(VolatilityCompressionBreakout),
+            Arc::new(CompositeAlphaBreakout),
         ];
         let cfg = SignalEngineConfig::default();
         let _ = evaluate_strategies(&strategies, &snap(), &cfg, None);
@@ -542,6 +544,7 @@ mod tests {
             Arc::new(LiquiditySweepReversal),
             Arc::new(OptionsOiExpansionBreakout::new()),
             Arc::new(VolatilityCompressionBreakout),
+            Arc::new(CompositeAlphaBreakout),
         ];
         let ids: Vec<StrategyId> = strategies.iter().map(|s| s.id()).collect();
         assert_eq!(
@@ -553,6 +556,7 @@ mod tests {
                 StrategyId::LiquiditySweepReversal,
                 StrategyId::OptionsOiExpansionBreakout,
                 StrategyId::VolatilityCompressionBreakout,
+                StrategyId::CompositeAlphaBreakout,
             ]
         );
     }

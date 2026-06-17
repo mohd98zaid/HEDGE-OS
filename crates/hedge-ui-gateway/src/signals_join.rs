@@ -51,6 +51,7 @@ pub struct AiShadowFilter {
 
 impl AiShadowFilter {
     /// Construct from an iterator of component names.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_iter<I, S>(iter: I) -> Self
     where
         I: IntoIterator<Item = S>,

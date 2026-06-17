@@ -4,7 +4,7 @@
 //!
 //! Retry is gated on [`crate::ExecError::is_retryable`]:
 //!
-//! * `BrokerTransient` — retry until `max_attempts` is reached.
+//! * `Broker(Transient)` — retry until `max_attempts` is reached.
 //! * Anything else — return immediately, do not retry.
 //!
 //! On each retry the backoff doubles, capped at `max_backoff_ns`. A
@@ -205,7 +205,7 @@ impl Sleeper for RecordingSleeper {
 ///
 /// `op(attempt)` is called with the 1-indexed attempt number. The
 /// adapter typically uses this to populate the `attempt` field on
-/// `BrokerTransient` errors so the caller observes a consistent
+/// `Broker(Transient)` errors so the caller observes a consistent
 /// error history.
 pub async fn retry_with_backoff<F, Fut, T, J, S>(
     policy: RetryPolicy,
@@ -254,14 +254,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use hedge_broker_api::BrokerError;
     use hedge_core::BrokerId;
 
     fn transient(attempt: u32) -> ExecError {
-        ExecError::BrokerTransient {
-            broker: BrokerId::Zerodha,
+        ExecError::from_broker(
+            BrokerId::Zerodha,
             attempt,
-            message: "timeout".into(),
-        }
+            BrokerError::Transient("timeout".into()),
+        )
     }
 
     /// Exponential schedule with `NoJitter`: 50ms, 100ms, 200ms, capped.

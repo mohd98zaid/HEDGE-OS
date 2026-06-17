@@ -47,6 +47,8 @@ import {
   type WarModeStatus,
 } from "../types";
 
+import { type FeedStatus, deriveFeedStatus } from "../lib/feedStatus";
+
 const MAX_NEWS = 200;
 const MAX_ALERTS = 250;
 const MAX_AI_EXPLANATIONS = 100;
@@ -145,6 +147,15 @@ export interface GatewayMeta {
    *  carried `_synth: true`. Drives the SynthBadge in panel headers
    *  (full-cockpit-data spec, REQ-13). */
   synthChannels: Partial<Record<ChannelId, boolean>>;
+  /** ms timestamp of the most recent md.tick.* envelope applied. */
+  lastTickAt?: number;
+  /** ms timestamp of the last gateway state transition. */
+  stateChangedAt: number;
+  /** Resolved by feedStatus selector — never written directly. */
+  feedStatus: FeedStatus;
+  /** Detail string for the Connection_Banner. */
+  feedStatusDetail: string;
+  demoMode: boolean;
 }
 
 export interface CockpitState {
@@ -181,6 +192,8 @@ export interface CockpitState {
   setSymbolPriority: (symbol: string, tier: PriorityTier) => void;
   /** Update the War_Mode presentation state (R26 — driven by `useWarMode`). */
   setWarMode: (next: WarModeStatus) => void;
+  setDemoMode: (active: boolean) => void;
+  recomputeFeedStatus: () => void;
   reset: () => void;
 }
 
@@ -338,7 +351,15 @@ const uniqLeft = (existing: string[], incoming: string[], cap_n: number): string
 // ---------- the store --------------------------------------------------------
 
 export const useCockpitStore = create<CockpitState>((set) => ({
-  meta: { state: "closed", lastSeenByChannel: {}, synthChannels: {} },
+  meta: {
+    state: "closed",
+    lastSeenByChannel: {},
+    synthChannels: {},
+    stateChangedAt: Date.now(),
+    feedStatus: "offline",
+    feedStatusDetail: "",
+    demoMode: false,
+  },
   market: emptyMarket(),
   orderflow: emptyOrderflow(),
   signals: emptySignals(),
@@ -352,7 +373,27 @@ export const useCockpitStore = create<CockpitState>((set) => ({
   warMode: emptyWarMode(),
 
   setGatewayState: (state) =>
-    set((s) => ({ meta: { ...s.meta, state } })),
+    set((s) => {
+      const now = Date.now();
+      const stateChangedAt = now;
+      const feedStatus = deriveFeedStatus({
+        gatewayState: state,
+        lastTickAt: s.meta.lastTickAt,
+        upstox: s.market.connections["upstox"],
+        nowMs: now,
+        demoMode: s.meta.demoMode,
+        reconnectingForMs: 0,
+      });
+      return {
+        meta: {
+          ...s.meta,
+          state,
+          stateChangedAt,
+          feedStatus,
+          feedStatusDetail: feedStatus,
+        },
+      };
+    }),
 
   pushAlert: (alert) =>
     set((s) => ({
@@ -377,9 +418,44 @@ export const useCockpitStore = create<CockpitState>((set) => ({
 
   setWarMode: (next) => set(() => ({ warMode: next })),
 
+  setDemoMode: (active) =>
+    set((s) => {
+      const feedStatus = deriveFeedStatus({
+        gatewayState: s.meta.state,
+        lastTickAt: s.meta.lastTickAt,
+        upstox: s.market.connections["upstox"],
+        nowMs: Date.now(),
+        demoMode: active,
+        reconnectingForMs: s.meta.state === "reconnecting" ? Date.now() - s.meta.stateChangedAt : 0,
+      });
+      return { meta: { ...s.meta, demoMode: active, feedStatus, feedStatusDetail: feedStatus } };
+    }),
+
+  recomputeFeedStatus: () =>
+    set((s) => {
+      const feedStatus = deriveFeedStatus({
+        gatewayState: s.meta.state,
+        lastTickAt: s.meta.lastTickAt,
+        upstox: s.market.connections["upstox"],
+        nowMs: Date.now(),
+        demoMode: s.meta.demoMode,
+        reconnectingForMs: s.meta.state === "reconnecting" ? Date.now() - s.meta.stateChangedAt : 0,
+      });
+      if (s.meta.feedStatus === feedStatus) return s; // no-op if unchanged
+      return { meta: { ...s.meta, feedStatus, feedStatusDetail: feedStatus } };
+    }),
+
   reset: () =>
     set(() => ({
-      meta: { state: "closed", lastSeenByChannel: {}, synthChannels: {} },
+      meta: {
+        state: "closed",
+        lastSeenByChannel: {},
+        synthChannels: {},
+        stateChangedAt: Date.now(),
+        feedStatus: "offline",
+        feedStatusDetail: "",
+        demoMode: false,
+      },
       market: emptyMarket(),
       orderflow: emptyOrderflow(),
       signals: emptySignals(),
@@ -409,11 +485,16 @@ export const useCockpitStore = create<CockpitState>((set) => ({
           return true;
         return false;
       })();
-      const stamped: GatewayMeta = {
+      const now = Date.now();
+      const isTick = env.channel === "market" && (env.payload as Record<string, unknown>)?.kind === "tick";
+      const lastTickAt = isTick ? now : s.meta.lastTickAt;
+
+      const stampedMetaBase = {
         ...s.meta,
+        lastTickAt,
         lastSeenByChannel: {
           ...s.meta.lastSeenByChannel,
-          [env.channel]: env.ts_ns ?? Date.now() * 1_000_000,
+          [env.channel]: env.ts_ns ?? now * 1_000_000,
         },
         synthChannels: {
           ...s.meta.synthChannels,
@@ -421,57 +502,85 @@ export const useCockpitStore = create<CockpitState>((set) => ({
         },
       };
 
+      const nextState: Partial<CockpitState> = {};
       switch (env.channel) {
         case "market":
-          return { meta: stamped, market: reduceMarket(s.market, env.payload as MarketEvent) };
+          nextState.market = reduceMarket(s.market, env.payload as MarketEvent);
+          break;
         case "orderflow":
-          return {
-            meta: stamped,
-            orderflow: reduceOrderflow(s.orderflow, env.payload as OrderflowChannel),
-          };
+          nextState.orderflow = reduceOrderflow(s.orderflow, env.payload as OrderflowChannel);
+          break;
         case "signals":
-          return {
-            meta: stamped,
-            signals: reduceSignalsChannel(s.signals, env, s.warMode),
-          };
+          nextState.signals = reduceSignalsChannel(s.signals, env, s.warMode);
+          break;
         case "risk":
-          return { meta: stamped, risk: reduceRisk(s.risk, env.payload as RiskEvent) };
+          nextState.risk = reduceRisk(s.risk, env.payload as RiskEvent);
+          break;
         case "exec":
-          return { meta: stamped, exec: reduceExec(s.exec, env.payload as ExecEvent) };
+          nextState.exec = reduceExec(s.exec, env.payload as ExecEvent);
+          break;
         case "news":
-          return { meta: stamped, news: reduceNews(s.news, env.payload as NewsImpact) };
+          nextState.news = reduceNews(s.news, env.payload as NewsImpact);
+          break;
         case "psych":
-          return { meta: stamped, psych: reducePsych(s.psych, env.payload as PsychEvent) };
+          nextState.psych = reducePsych(s.psych, env.payload as PsychEvent);
+          break;
         case "alerts": {
           const alert = normaliseAlert(env.payload, env.subject, env.ts_ns);
-          if (!alert) return { meta: stamped };
-          return {
-            meta: stamped,
-            alerts: { list: sortAlerts([alert, ...s.alerts.list]) },
-          };
+          if (alert) {
+            nextState.alerts = { list: sortAlerts([alert, ...s.alerts.list]) };
+          }
+          break;
         }
         case "replay":
-          return {
-            meta: stamped,
-            replay: reduceReplay(s.replay, env.payload as ReplayEvent),
-          };
+          nextState.replay = reduceReplay(s.replay, env.payload as ReplayEvent);
+          break;
         case "latency":
-          return {
-            meta: stamped,
-            latency: reduceLatency(s.latency, env.payload as LatencyEvent),
-          };
-        case "control":
-          // /control is client → server only. Ignore inbound.
-          return { meta: stamped };
-        default:
-          return { meta: stamped };
+          nextState.latency = reduceLatency(s.latency, env.payload as LatencyEvent);
+          break;
       }
+
+      const upstox = (nextState.market ?? s.market).connections["upstox"];
+      const reconnectingForMs = stampedMetaBase.state === "reconnecting" ? now - stampedMetaBase.stateChangedAt : 0;
+      const feedStatus = deriveFeedStatus({
+        gatewayState: stampedMetaBase.state,
+        lastTickAt,
+        upstox,
+        nowMs: now,
+        demoMode: stampedMetaBase.demoMode,
+        reconnectingForMs,
+      });
+
+      return {
+        ...nextState,
+        meta: { ...stampedMetaBase, feedStatus, feedStatusDetail: feedStatus },
+      };
     }),
 }));
 
 // ---------- per-channel reducers ---------------------------------------------
 
 function reduceMarket(prev: MarketSlice, ev: MarketEvent): MarketSlice {
+  if (!ev || typeof ev !== "object" || !ev.kind || !ev.data || typeof ev.data !== "object") {
+    // eslint-disable-next-line no-console
+    console.warn("[ws] dropping malformed market event payload", ev);
+    return prev;
+  }
+
+  if (ev.kind === "tick" || ev.kind === "book" || ev.kind === "oi") {
+    if (typeof (ev.data as Record<string, unknown>).symbol !== "string") {
+      // eslint-disable-next-line no-console
+      console.warn(`[ws] dropping malformed ${ev.kind} payload (missing symbol)`, ev.data);
+      return prev;
+    }
+  } else if (ev.kind === "connection") {
+    if (typeof (ev.data as Record<string, unknown>).source !== "string") {
+      // eslint-disable-next-line no-console
+      console.warn("[ws] dropping malformed connection payload (missing source)", ev.data);
+      return prev;
+    }
+  }
+
   switch (ev.kind) {
     case "tick":
       return { ...prev, ticks: { ...prev.ticks, [ev.data.symbol]: ev.data } };

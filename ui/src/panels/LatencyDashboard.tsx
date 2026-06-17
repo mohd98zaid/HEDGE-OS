@@ -3,6 +3,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { fmtNanos } from "../lib/format";
 import type { LatencyStage } from "../types";
 
@@ -26,6 +27,9 @@ export function LatencyDashboard(): JSX.Element {
       critical
       status={<span>{records.length} samples</span>}
     >
+      {records.length === 0 ? (
+        <EmptyState isEngineBacked />
+      ) : (
       <table className="w-full font-mono text-[11px]">
         <thead className="text-slate-500">
           <tr>
@@ -61,6 +65,7 @@ export function LatencyDashboard(): JSX.Element {
           })}
         </tbody>
       </table>
+      )}
     </Panel>
   );
 }

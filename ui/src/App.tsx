@@ -11,8 +11,9 @@ import type { ReactNode } from "react";
 import { useUiGatewaySocket } from "./hooks/useUiGatewaySocket";
 import { useHighVolMode } from "./hooks/useHighVolMode";
 import { useWarMode } from "./hooks/useWarMode";
-import { useCockpitStore } from "./store/cockpitStore";
+import { useFeedStatusTicker } from "./hooks/useFeedStatusTicker";
 import { TradingModeToggle } from "./components/TradingModeToggle";
+import { ConnectionBanner } from "./components/ConnectionBanner";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import {
   AiConfidenceScores,
@@ -43,14 +44,7 @@ export default function App(): JSX.Element {
   const { sendIntent } = useUiGatewaySocket();
   const { active, volatility, threshold } = useHighVolMode();
   const warMode = useWarMode();
-  const gatewayState = useCockpitStore((s) => s.meta.state);
-
-  const stateTone =
-    gatewayState === "open"
-      ? "text-hedge-ok"
-      : gatewayState === "connecting" || gatewayState === "reconnecting"
-        ? "text-hedge-warn"
-        : "text-hedge-danger";
+  useFeedStatusTicker();
 
   return (
     <main
@@ -66,7 +60,7 @@ export default function App(): JSX.Element {
           </h1>
           <p className="text-[11px] text-slate-500">
             ws gateway:{" "}
-            <span className={stateTone}>{gatewayState}</span>
+            <ConnectionBanner />
             {" · "}
             breadth.σ {volatility != null ? `${(volatility * 100).toFixed(2)}%` : "—"}
             {" / "}

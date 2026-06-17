@@ -129,10 +129,9 @@ async fn spawn_nats_to_broadcast(
                         .unwrap_or("")
                         .to_owned();
                     // Try JSON first (Warm_AI_Pipeline + UI-shaped events
-                    // we forward), fall back to a base64 envelope so the
-                    // cockpit can decode FlatBuffers payloads itself
-                    // until the dedicated decoder shim lands.
-                    let payload = decode_payload(&msg.payload);
+                    // we forward), fall back to the decoder shim which
+                    // unpacks Hot_Path binary payloads into UI JSON.
+                    let payload = hedge_ui_gateway::decoder_shim::decode_payload_shim(&subject, &msg.payload);
                     let ts_ns = chrono::Utc::now()
                         .timestamp_nanos_opt()
                         .unwrap_or(0)
@@ -158,20 +157,7 @@ async fn spawn_nats_to_broadcast(
     Ok(())
 }
 
-/// Decode a NATS payload into a JSON [`Value`]. JSON-shaped payloads
-/// pass through unchanged. Anything else is wrapped in
-/// `{"_raw_b64": "..."}` so the React cockpit can route to its own
-/// FlatBuffers decoder until the dedicated shim lands.
-fn decode_payload(bytes: &[u8]) -> Value {
-    match serde_json::from_slice::<Value>(bytes) {
-        Ok(v) => v,
-        Err(_) => {
-            use base64::Engine as _;
-            let b64 = base64::engine::general_purpose::STANDARD.encode(bytes);
-            serde_json::json!({ "_raw_b64": b64 })
-        }
-    }
-}
+// The base `decode_payload` is now replaced by the decoder shim in `decoder_shim.rs`.
 
 fn init_tracing() {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));

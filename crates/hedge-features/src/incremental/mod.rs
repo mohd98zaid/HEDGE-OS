@@ -49,3 +49,6 @@ pub mod rolling_delta;
 pub mod sweep;
 pub mod volatility;
 pub mod vwap;
+pub mod rsi;
+pub mod donchian;
+pub mod adx;

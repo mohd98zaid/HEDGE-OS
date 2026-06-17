@@ -77,6 +77,11 @@ impl OrderflowState {
         self.heatmap.subscribe()
     }
 
+    /// Retrieve the current heatmap snapshot without allocating a new receiver.
+    pub fn get_current_heatmap(&self) -> HeatmapSnapshot {
+        self.heatmap.get_snapshot()
+    }
+
     /// Apply a fresh `OrderBook_v1` payload, refreshing book state, running
     /// detectors, refreshing the heatmap, and producing a snapshot.
     ///
@@ -205,6 +210,16 @@ impl OrderflowEngine {
     ) -> Option<tokio::sync::watch::Receiver<HeatmapSnapshot>> {
         let guard = self.inner.lock();
         guard.get(&symbol).map(|s| s.subscribe_heatmap())
+    }
+
+    /// Retrieve the current heatmap snapshot for `symbol` without allocating
+    /// a new receiver channel. Returns `None` if the symbol is not tracked.
+    pub fn current_heatmap(
+        &self,
+        symbol: SymbolId,
+    ) -> Option<HeatmapSnapshot> {
+        let guard = self.inner.lock();
+        guard.get(&symbol).map(|s| s.get_current_heatmap())
     }
 
     /// Apply a book update and return the resulting snapshot.

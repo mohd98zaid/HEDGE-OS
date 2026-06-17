@@ -3,6 +3,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { paiseToInr, tsAgo } from "../lib/format";
 import { useHighVolMode } from "../hooks/useHighVolMode";
 
@@ -26,7 +27,7 @@ export function LiveMarket(): JSX.Element {
       }
     >
       {symbols.length === 0 ? (
-        <p className="text-slate-500">Awaiting first md.tick.* frame …</p>
+        <EmptyState />
       ) : (
         <table className="w-full font-mono text-xs">
           <thead className="text-slate-500">

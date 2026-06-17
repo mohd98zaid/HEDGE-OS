@@ -186,7 +186,7 @@ impl<const N: usize, T> BoundedRingLogBuffer<N, T> {
     pub fn push(&self, value: T) -> Option<T> {
         let mut g = self.inner.lock();
         let cap = self.capacity;
-        let evicted = if g.len == cap {
+        if g.len == cap {
             // Full — replace the oldest slot and advance head.
             let head = g.head;
             let displaced = g.buf[head].take();
@@ -199,8 +199,7 @@ impl<const N: usize, T> BoundedRingLogBuffer<N, T> {
             g.buf[idx] = Some(value);
             g.len += 1;
             None
-        };
-        evicted
+        }
     }
 
     /// Drain every buffered entry in FIFO order. The buffer is empty
@@ -231,6 +230,9 @@ impl<const N: usize, T> Default for BoundedRingLogBuffer<N, T> {
 }
 
 #[cfg(test)]
+pub(crate) static TEST_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::atomic::{AtomicUsize, Ordering as AOrdering};
@@ -238,6 +240,7 @@ mod tests {
 
     #[test]
     fn degraded_flags_default_off() {
+        let _guard = super::TEST_MUTEX.lock().unwrap();
         // Note: `degraded_state()` is process-global. Other tests may have
         // toggled the flags; reset and observe.
         let s = degraded_state();
@@ -249,6 +252,7 @@ mod tests {
 
     #[test]
     fn degraded_flags_transition_atomically_for_readers() {
+        let _guard = super::TEST_MUTEX.lock().unwrap();
         // Property: a Release write becomes visible to an Acquire read.
         // Use a worker thread to assert the visibility round-trip.
         let s = degraded_state();

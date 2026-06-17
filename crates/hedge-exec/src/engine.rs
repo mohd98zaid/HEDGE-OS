@@ -37,7 +37,7 @@ use tracing::instrument;
 use hedge_broker_api::{
     BrokerAdapter, Exchange, OrderIntent as BrokerOrderIntent, OrderType,
 };
-use hedge_core::{now_ns, BrokerId, CorrelationId, Qty, Side};
+use hedge_core::{now_ns, CorrelationId, Qty, Side};
 use hedge_obs::LatencyEmitter;
 use hedge_risk::{ApprovalToken, ApprovalVerifier};
 use hedge_schemas::order_state::OrderLifecycleState;
@@ -178,6 +178,7 @@ impl ExecutionEngine {
             exec.replay = ?self.inner.replay_mode,
         )
     )]
+    #[allow(clippy::too_many_arguments)]
     pub async fn submit<E, J, S>(
         &self,
         token: &ApprovalToken,
@@ -551,6 +552,7 @@ mod tests {
     use hedge_broker_api::{
         BrokerError, BrokerMetric, OrderModification, OrderStatus, ReadyState, SubmitAck,
     };
+    use hedge_core::BrokerId;
     use hedge_risk::ApprovalSigner;
     use std::sync::atomic::{AtomicU32, Ordering};
 

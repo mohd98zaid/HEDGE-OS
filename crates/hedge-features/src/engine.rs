@@ -35,8 +35,8 @@ use parking_lot::Mutex;
 use tracing::{instrument, warn};
 
 use crate::incremental::{
-    atr, breakout, candle, compression, ema, liquidity, momentum, rolling_delta, sweep,
-    volatility, vwap,
+    adx, atr, breakout, candle, compression, donchian, ema, liquidity, momentum, rolling_delta,
+    rsi, sweep, volatility, vwap,
 };
 use crate::state::FeatureState;
 use crate::war_mode::WarModeProfile;
@@ -52,7 +52,7 @@ pub const FEATURE_EXTRACTION_BUDGET_NS: u64 = 3_000_000;
 ///  + 8 (rolling_delta i64) + 2*4 (liq_imbalance/of_strength f32) + 1 (candle u8)
 ///  + 3*4 (breakout/compression/sweep f32) + 8 (ts_ns u64)`
 ///   = `16 + 4 + 32 + 12 + 8 + 8 + 1 + 12 + 8` = `101` bytes.
-pub const FEATURE_WIRE_SIZE: usize = 16 + 4 + 4 * 8 + 3 * 4 + 8 + 2 * 4 + 1 + 3 * 4 + 8;
+pub const FEATURE_WIRE_SIZE: usize = 141;
 
 /// Encode a [`FeatureSnapshot`] (POD) into a wire [`RawBytes`].
 ///
@@ -63,13 +63,19 @@ pub fn encode(snap: &FeatureSnapshot) -> RawBytes {
     let mut buf = Vec::with_capacity(FEATURE_WIRE_SIZE);
     buf.extend_from_slice(&snap.correlation_id);
     buf.extend_from_slice(&snap.symbol.to_le_bytes());
+    buf.extend_from_slice(&snap.price.to_le_bytes());
     buf.extend_from_slice(&snap.vwap.to_le_bytes());
     buf.extend_from_slice(&snap.atr.to_le_bytes());
     buf.extend_from_slice(&snap.ema_fast.to_le_bytes());
     buf.extend_from_slice(&snap.ema_slow.to_le_bytes());
+    buf.extend_from_slice(&snap.ema_trend.to_le_bytes());
     buf.extend_from_slice(&snap.ema_slope.to_le_bytes());
     buf.extend_from_slice(&snap.realized_vol.to_le_bytes());
     buf.extend_from_slice(&snap.momentum.to_le_bytes());
+    buf.extend_from_slice(&snap.rsi.to_le_bytes());
+    buf.extend_from_slice(&snap.adx.to_le_bytes());
+    buf.extend_from_slice(&snap.donchian_upper.to_le_bytes());
+    buf.extend_from_slice(&snap.donchian_lower.to_le_bytes());
     buf.extend_from_slice(&snap.rolling_delta.to_le_bytes());
     buf.extend_from_slice(&snap.liquidity_imbalance.to_le_bytes());
     buf.extend_from_slice(&snap.orderflow_strength.to_le_bytes());
@@ -129,6 +135,9 @@ pub fn process_tick_into_state(state: &mut FeatureState, tick: &Tick) -> Feature
     momentum::update(state, tick);
     candle::update(state, tick);
     sweep::update(state, tick);
+    rsi::update(state, tick);
+    donchian::update(state, tick);
+    adx::update(state, tick);
     // Breakout and compression are pure-read indicators — `update` is
     // a no-op but we call them for symmetry / future-proofing.
     breakout::update(state, tick);
@@ -144,13 +153,19 @@ pub fn process_tick_into_state(state: &mut FeatureState, tick: &Tick) -> Feature
     FeatureSnapshot {
         correlation_id: tick.correlation_id,
         symbol: tick.symbol,
+        price: tick.ltp_paise,
         vwap: vwap::compute_paise(state),
         atr: atr::compute_paise(state),
         ema_fast: ema::compute_fast_paise(state),
         ema_slow: ema::compute_slow_paise(state),
+        ema_trend: ema::compute_trend_paise(state),
         ema_slope: ema::compute_slope(state),
         realized_vol: volatility::compute(state),
         momentum: momentum::compute(state),
+        rsi: rsi::compute(state),
+        adx: adx::compute(state),
+        donchian_upper: donchian::compute_upper(state),
+        donchian_lower: donchian::compute_lower(state),
         rolling_delta: rolling_delta::compute_paise(state),
         liquidity_imbalance: liquidity::compute_imbalance(state),
         orderflow_strength: liquidity::compute_orderflow_strength(state),
@@ -341,13 +356,19 @@ mod tests {
         let snap = FeatureSnapshot {
             correlation_id: [0u8; 16],
             symbol: 1,
+            price: 100_00,
             vwap: 100_00,
             atr: 50,
             ema_fast: 100_00,
             ema_slow: 99_50,
+            ema_trend: 99_00,
             ema_slope: 0.5,
             realized_vol: 0.001,
             momentum: 0.01,
+            rsi: 55.0,
+            adx: 30.0,
+            donchian_upper: 105_00,
+            donchian_lower: 95_00,
             rolling_delta: 5,
             liquidity_imbalance: 0.2,
             orderflow_strength: 0.3,
@@ -373,13 +394,19 @@ mod tests {
         let snap = FeatureSnapshot {
             correlation_id: [1u8; 16],
             symbol: 7,
+            price: 0,
             vwap: 0,
             atr: 0,
             ema_fast: 0,
             ema_slow: 0,
+            ema_trend: 0,
             ema_slope: 0.0,
             realized_vol: 0.0,
             momentum: 0.0,
+            rsi: 0.0,
+            adx: 0.0,
+            donchian_upper: 0,
+            donchian_lower: 0,
             rolling_delta: 0,
             liquidity_imbalance: 0.0,
             orderflow_strength: 0.0,
@@ -410,6 +437,9 @@ mod tests {
         assert!(!momentum::is_ready(&s));
         assert!(!compression::is_ready(&s));
         assert!(!sweep::is_ready(&s));
+        assert!(!rsi::is_ready(&s));
+        assert!(!donchian::is_ready(&s));
+        assert!(!adx::is_ready(&s));
 
         // 32 ticks — large enough to fill every window.
         for i in 0..32u64 {
@@ -424,6 +454,9 @@ mod tests {
             momentum::update(&mut s, &t);
             candle::update(&mut s, &t);
             sweep::update(&mut s, &t);
+            rsi::update(&mut s, &t);
+            donchian::update(&mut s, &t);
+            adx::update(&mut s, &t);
             s.tick_count = s.tick_count.saturating_add(1);
             s.prev_ltp_paise = s.last_ltp_paise;
             s.last_ltp_paise = t.ltp_paise;
@@ -436,5 +469,8 @@ mod tests {
         assert!(volatility::is_ready(&s));
         assert!(momentum::is_ready(&s));
         assert!(compression::is_ready(&s));
+        assert!(rsi::is_ready(&s));
+        assert!(donchian::is_ready(&s));
+        assert!(adx::is_ready(&s));
     }
 }

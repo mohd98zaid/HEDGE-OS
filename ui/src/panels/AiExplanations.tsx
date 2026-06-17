@@ -2,6 +2,7 @@
 
 import { useCockpitStore } from "../store/cockpitStore";
 import { Panel } from "../components/Panel";
+import { EmptyState } from "../components/EmptyState";
 import { pct, tsAgo } from "../lib/format";
 
 export function AiExplanations(): JSX.Element {
@@ -11,7 +12,7 @@ export function AiExplanations(): JSX.Element {
   return (
     <Panel title="AI Explanations" synthChannel="signals" status={<span>{withText.length} rationales</span>}>
       {withText.length === 0 ? (
-        <p className="text-slate-500">No grounded explanations yet.</p>
+        <EmptyState isEngineBacked />
       ) : (
         <ul className="space-y-3 max-h-80 overflow-y-auto">
           {withText.map((s) => (

@@ -229,8 +229,13 @@ fn build_decision_payload(
     decision: &hedge_risk::RiskDecision,
     signal: &Signal_v1,
 ) -> (&'static str, Value) {
-    let _ = signal;
     let now_ns = chrono::Utc::now().timestamp_nanos_opt().unwrap_or(0);
+    let side_str = match signal.side {
+        0 => "buy",
+        1 => "sell",
+        _ => "buy",
+    };
+    let symbol_str = hedge_bus::symbol_for_id(signal.symbol).unwrap_or("UNKNOWN");
     match decision {
         hedge_risk::RiskDecision::Approved {
             sized_quantity, ..
@@ -244,6 +249,8 @@ fn build_decision_payload(
                     "rationale_code": 0,
                     "rationale": "approved",
                     "sized_quantity": *sized_quantity,
+                    "side": side_str,
+                    "symbol": symbol_str,
                     "ts_ns": now_ns,
                 }
             }),
@@ -268,22 +275,10 @@ fn build_decision_payload(
     }
 }
 
-/// Generate a 64-byte ephemeral HMAC key from process-local entropy.
+/// Generate a 64-byte ephemeral HMAC key using OS-level entropy.
 fn generate_ephemeral_hmac_key() -> Vec<u8> {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let pid = std::process::id() as u64;
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos() as u64)
-        .unwrap_or(0);
-    let mut key = Vec::with_capacity(64);
-    for i in 0u64..8 {
-        let salted = pid
-            .wrapping_mul(0x9E37_79B9_7F4A_7C15)
-            .wrapping_add(nanos)
-            .wrapping_add(i.wrapping_mul(0xDEAD_BEEF));
-        key.extend_from_slice(&salted.to_be_bytes());
-    }
-    let _ = Duration::from_secs(0); // silence unused-import lint when Duration ever drops
+    use rand::RngCore;
+    let mut key = vec![0u8; 64];
+    rand::rngs::OsRng.fill_bytes(&mut key);
     key
 }

@@ -53,7 +53,7 @@ impl Strategy for VwapPullback {
         StrategyId::VwapPullback
     }
 
-    fn evaluate(&self, snap: &FeatureSnapshot, ctx: &StrategyContext) -> Option<Signal> {
+    fn evaluate(&self, snap: &FeatureSnapshot, _ctx: &StrategyContext) -> Option<Signal> {
         // Need positive ATR to define the pullback band.
         if snap.atr <= 0 {
             return None;

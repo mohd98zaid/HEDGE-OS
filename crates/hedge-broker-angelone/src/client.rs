@@ -388,12 +388,12 @@ pub struct SmartApiOrderStatus {
 fn classify_smartapi_error(code: &str, msg: &str) -> BrokerError {
     let combined = format!("{code} {msg}");
     match code {
+        // AB1007 / AB1008 / AB1011 — rate-limit or transient
+        "AB1007" | "AB1008" | "AB1011" => BrokerError::Transient(combined),
         // AB1010 — User not authenticated.
         // AB1004 — Invalid token.
         // AB2000 / AB2001 — Auth-related
         c if c.starts_with("AB10") => BrokerError::Auth(combined),
-        // AB1007 / AB1008 — rate-limit or transient
-        "AB1007" | "AB1008" | "AB1011" => BrokerError::Transient(combined),
         // AB9000 onward — internal SmartAPI errors → Transient
         c if c.starts_with("AB9") => BrokerError::Transient(combined),
         _ => BrokerError::Rejected(combined),

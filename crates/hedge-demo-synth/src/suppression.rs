@@ -103,6 +103,7 @@ impl SuppressionRegistry {
 
     /// Number of subjects currently being suppressed. Useful in tests
     /// and `tracing` summaries.
+    #[allow(dead_code)]
     pub fn suppressed_count(&self) -> usize {
         let now = Instant::now();
         self.inner
@@ -119,6 +120,7 @@ impl SuppressionRegistry {
 
     /// Inspect the suppression deadline for a single subject. `None` when
     /// the subject has never been observed or is no longer suppressed.
+    #[allow(dead_code)]
     pub fn suppressed_until(&self, subject: &str) -> Option<Instant> {
         self.inner
             .map

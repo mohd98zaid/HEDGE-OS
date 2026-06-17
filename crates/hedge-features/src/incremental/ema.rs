@@ -20,13 +20,16 @@
 
 use hedge_schemas::Tick;
 
-use crate::state::{FeatureState, EMA_FAST_PERIOD, EMA_SLOPE_LOOKBACK, EMA_SLOW_PERIOD};
+use crate::state::{FeatureState, EMA_FAST_PERIOD, EMA_SLOPE_LOOKBACK, EMA_SLOW_PERIOD, EMA_TREND_PERIOD};
 
 /// `α` for the EMA(9) recurrence.
 pub const ALPHA_FAST: f64 = 2.0 / (EMA_FAST_PERIOD as f64 + 1.0);
 
 /// `α` for the EMA(21) recurrence.
 pub const ALPHA_SLOW: f64 = 2.0 / (EMA_SLOW_PERIOD as f64 + 1.0);
+
+/// `α` for the EMA(50) recurrence.
+pub const ALPHA_TREND: f64 = 2.0 / (EMA_TREND_PERIOD as f64 + 1.0);
 
 /// Fold a tick into both EMA accumulators and the EMA-fast history
 /// window used by [`compute_slope`].
@@ -35,21 +38,33 @@ pub fn update(state: &mut FeatureState, tick: &Tick) {
     let price = tick.ltp_paise as f64;
 
     if state.ema_fast_seeded {
-        let prev = state.ema_fast_paise as f64;
-        let next = prev + ALPHA_FAST * (price - prev);
-        state.ema_fast_paise = next.round() as i64;
+        let prev = state.ema_fast_acc;
+        state.ema_fast_acc = prev + ALPHA_FAST * (price - prev);
+        state.ema_fast_paise = state.ema_fast_acc.round() as i64;
     } else {
+        state.ema_fast_acc = price;
         state.ema_fast_paise = tick.ltp_paise;
         state.ema_fast_seeded = true;
     }
 
     if state.ema_slow_seeded {
-        let prev = state.ema_slow_paise as f64;
-        let next = prev + ALPHA_SLOW * (price - prev);
-        state.ema_slow_paise = next.round() as i64;
+        let prev = state.ema_slow_acc;
+        state.ema_slow_acc = prev + ALPHA_SLOW * (price - prev);
+        state.ema_slow_paise = state.ema_slow_acc.round() as i64;
     } else {
+        state.ema_slow_acc = price;
         state.ema_slow_paise = tick.ltp_paise;
         state.ema_slow_seeded = true;
+    }
+
+    if state.ema_trend_seeded {
+        let prev = state.ema_trend_acc;
+        state.ema_trend_acc = prev + ALPHA_TREND * (price - prev);
+        state.ema_trend_paise = state.ema_trend_acc.round() as i64;
+    } else {
+        state.ema_trend_acc = price;
+        state.ema_trend_paise = tick.ltp_paise;
+        state.ema_trend_seeded = true;
     }
 
     state.ema_fast_history.push(state.ema_fast_paise);
@@ -70,6 +85,16 @@ pub fn compute_fast_paise(state: &FeatureState) -> i64 {
 pub fn compute_slow_paise(state: &FeatureState) -> i64 {
     if state.ema_slow_seeded {
         state.ema_slow_paise
+    } else {
+        0
+    }
+}
+
+/// Returns EMA trend in paise.
+#[inline]
+pub fn compute_trend_paise(state: &FeatureState) -> i64 {
+    if state.ema_trend_seeded {
+        state.ema_trend_paise
     } else {
         0
     }
@@ -109,6 +134,7 @@ pub fn compute(state: &FeatureState) -> f32 {
 pub fn is_ready(state: &FeatureState) -> bool {
     state.ema_fast_seeded
         && state.ema_slow_seeded
+        && state.ema_trend_seeded
         && state.ema_fast_history.len() >= EMA_SLOPE_LOOKBACK
 }
 
@@ -119,6 +145,7 @@ mod tests {
     use proptest::prelude::*;
 
     /// Reference EMA recurrence in paise via f64 round-to-nearest.
+    /// Rounds only at the very end — matches the accumulator approach.
     fn reference_ema_paise(prices: &[i64], alpha: f64) -> i64 {
         if prices.is_empty() {
             return 0;
@@ -172,16 +199,16 @@ mod tests {
                 let slow_got = compute_slow_paise(&state);
                 let fast_expected = reference_ema_paise(&prices, ALPHA_FAST);
                 let slow_expected = reference_ema_paise(&prices, ALPHA_SLOW);
-                // Allow 1 paise tolerance for round-to-nearest drift on
-                // accumulated f64 -> i64 round-trips.
+                // Both use f64 accumulators with a single round() at the
+                // end — should match the reference exactly.
                 prop_assert!(
-                    (fast_got - fast_expected).abs() <= 1,
+                    fast_got == fast_expected,
                     "fast: got {} expected {}",
                     fast_got,
                     fast_expected
                 );
                 prop_assert!(
-                    (slow_got - slow_expected).abs() <= 1,
+                    slow_got == slow_expected,
                     "slow: got {} expected {}",
                     slow_got,
                     slow_expected

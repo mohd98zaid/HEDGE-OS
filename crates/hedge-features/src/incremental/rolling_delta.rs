@@ -130,7 +130,7 @@ mod tests {
     fn rolling_delta_negative_on_downtick() {
         let mut s = FeatureState::default();
         s.last_ltp_paise = 100_00;
-        let t = tick_full(99_00, 5, 100, 0, 0, 1_000_000_000);
+        let t = tick_full(99_00, 5, 0, 100, 0, 1_000_000_000);
         update(&mut s, &t);
         assert_eq!(compute_paise(&s), -5);
     }

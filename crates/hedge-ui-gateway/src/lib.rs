@@ -38,6 +38,7 @@
 
 pub mod alerts;
 pub mod channels;
+pub mod decoder_shim;
 pub mod dispatcher;
 pub mod gateway;
 pub mod intents;

@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc c12336d69683ef6b3544a14b0e9910e93ecae9d5ce3356b1e8093b66a08a4ca4 # shrinks to legs = [(1, 100), (4, 716)], sell_pxs = [100]
+cc c62c3a1b141d565437ede0f5f144f437f98f39d3ddd7aa4ab0bdcfde0f9d138c # shrinks to tape = [Fill { side: Sell, qty: 1, px_paise: 100 }]
