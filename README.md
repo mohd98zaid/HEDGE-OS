@@ -10,7 +10,7 @@ A production-grade, human-in-the-loop trading cockpit that combines deterministi
 
 - **Tick-to-trade < 50ms p99** — Rust Hot_Path with zero-allocation steady state
 - **100% local AI** — Ollama (Qwen2.5:14B, Mistral:7B, DeepSeek-R1, Phi) + ONNX Runtime, zero cloud dependency
-- **6 intraday strategies** — ORB, VWAP Pullback, Momentum Breakout, Liquidity Sweep Reversal, OI Expansion, Volatility Compression
+- **8 intraday strategies** — ORB, VWAP Pullback, Momentum Breakout, Liquidity Sweep Reversal, OI Expansion, Volatility Compression, Composite Alpha, Precision Breakout Pro
 - **Risk Engine with final authority** — 14+ limit gates, HMAC-signed approval tokens, Kill Switch
 - **Real-time orderflow analysis** — bid/ask imbalance, absorption, spoofing detection, liquidity pressure
 - **Trader psychology protection** — detects revenge trading, FOMO, tilt; progressive intervention ladder
@@ -125,6 +125,8 @@ The Execution_Engine physically cannot submit an order without a valid `Approval
 | 4 | **Liquidity Sweep Reversal** | Sweep of prior session high/low followed by reversal |
 | 5 | **Options OI Expansion Breakout** | Open interest expansion at key strikes signals directional move |
 | 6 | **Volatility Compression Breakout** | Bollinger squeeze + ATR compression resolves with volume |
+| 7 | **Composite Alpha Breakout** | Multi-factor breakout combining momentum and liquidity |
+| 8 | **Precision Breakout Pro** | High-precision micro-structure breakout detection |
 
 All strategies are:
 - Evaluated on every feature update (no polling)
@@ -345,6 +347,9 @@ Trader/
 ├── .github/workflows/          # CI: hot-path-purity + nightly soak
 ├── tests/fixtures/             # Canonical replay fixture
 ├── scripts/                    # Chaos test, canonical generator
+├── multi_tf_backtest.py        # Multi-timeframe backtesting engine
+├── calc_stats.py               # Performance statistics calculator
+├── portfolio_backtest_report.md# Generated portfolio performance report
 ├── start.bat                   # One-click ordered startup
 ├── run.bat                     # Full Docker startup
 ├── run-local.bat               # Hybrid local + Docker startup
